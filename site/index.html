@@ -142,7 +142,6 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
   <section class="readout" id="readout" aria-live="polite"></section>
 
   <section class="stage">
-    <div class="scroller"><div class="board v" id="board"></div></div>
     <div class="hintline">Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.</div>
     <div class="row">
       <button class="btn primary" id="strum">Tocar</button>
@@ -157,6 +156,8 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
       <button class="btn" id="showall" aria-pressed="false">Ver todas las notas</button>
       <button class="btn" id="autostrum" aria-pressed="false">Sonar acorde al agregar</button>
     </div>
+    <div class="scroller"><div class="board v" id="board"></div></div>
+    <div class="row" id="invrow" hidden><button class="btn" id="invbtn" aria-expanded="false">Inversiones ▾</button></div>
   </section>
 
   <section class="inv" id="inv" hidden></section>
@@ -404,8 +405,7 @@ function renderReadout(notes,cands){
     const c=cands[0], bassPc=notes[0].midi%12, bt=c.tones.find(t=>t.pc===bassPc), bi=c.tones.indexOf(bt);
     const chips=notes.map(n=>{const t=c.tones.find(t=>t.pc===n.midi%12);return chip(t.role,t.label,fmt(t.name)+oct(n.midi))}).join('');
     const alts=cands.slice(1,5).map(x=>`<b>${symOf(x,bassPc)}</b>`).join(' · ');
-    h=`<div class="rhead"><div><div class="eyebrow">Acorde${bi>0?' · '+bi+'ª inversión':''}</div><div class="big">${symOf(c,bassPc)}</div></div>
-       <button class="btn" id="invbtn" aria-expanded="${invOpen}">Inversiones ${invOpen?'▴':'▾'}</button></div>
+    h=`<div class="rhead"><div><div class="eyebrow">Acorde${bi>0?' · '+bi+'ª inversión':''}</div><div class="big">${symOf(c,bassPc)}</div></div></div>
        <div class="sub">${fmt(c.rootName)} ${c.t.es}${bi>0?' · bajo en '+fmt(bt.name):''}</div>
        <div class="chips">${chips}</div>${alts?`<div class="alt">También se lee: ${alts}</div>`:''}`;
   }else{
@@ -417,8 +417,11 @@ function renderReadout(notes,cands){
       h=`<div class="eyebrow">Intervalo</div><div class="big">${INT[d]}</div><div class="sub">Solo ${pcs.length} notas distintas (${pcs.map(p=>fmt(NEUTRAL[p])).join(' y ')}), así que no forman un acorde.</div><div class="chips">${chips}</div>`}
   }
   el.innerHTML=h;
-  const ib=$('invbtn'); if(ib) ib.onclick=()=>{invOpen=!invOpen;update()};
+  const ib=$('invbtn'), has=notes.length>=3&&cands.length>0;
+  $('invrow').hidden=!has;
+  ib.setAttribute('aria-expanded',invOpen); ib.textContent='Inversiones '+(invOpen?'▴':'▾');
 }
+$('invbtn').onclick=()=>{invOpen=!invOpen;update()};
 
 /* ---------- inversiones ---------- */
 /* ¿Se puede tocar con una mano? Reglas:

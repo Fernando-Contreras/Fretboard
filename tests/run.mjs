@@ -18,8 +18,8 @@ const fake = () => new Proxy(function () {}, {
 });
 const sandbox = { document: { getElementById: () => fake(), documentElement: { dataset: {} }, querySelectorAll: () => [], querySelector: () => null, createElement: () => fake(), body: fake(), addEventListener() {} }, innerWidth: 1000, window: {}, console, matchMedia: () => ({ matches: true, addEventListener() {} }) };
 vm.createContext(sandbox);
-const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT,setLang:l=>{lang=l},intName,symT,descT,invNames,tr})', sandbox);
-const { findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN, setLang, intName, symT, descT, invNames } = api;
+const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT,setLang:l=>{lang=l},intName,symT,descT,invNames,tr,sheetModel})', sandbox);
+const { findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN, setLang, intName, symT, descT, invNames, sheetModel } = api;
 
 let fails = 0, checks = 0;
 const bad = (msg) => { fails++; if (fails <= 30) console.log('FALLA:', msg); };
@@ -122,6 +122,33 @@ for (let mask = 1; mask < 4096; mask++) {
 setLang('es');
 ok(intName(7) === '5ª justa' && symT(TPL[24]) === '7(sin 5)', 'el español cambió');
 
+// 6) partitura: cada nota escrita reproduce exactamente su altura (una octava arriba) y cae en la línea/espacio correcto
+const LETS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'], LETPCS = [0, 2, 4, 5, 7, 9, 11];
+let sheetChecked = 0;
+const checkSheet = (notes, chord, tag) => {
+  const items = sheetModel(notes, chord), uniq = new Set(notes.map(n => n.midi)).size;
+  ok(items.length === uniq, `${tag}: partitura con ${items.length} notas y hay ${uniq}`);
+  for (const it of items) {
+    const back = 12 * (it.wo + 1) + LETPCS[LETS.indexOf(it.L)] + it.off;
+    ok(back === it.midi + 12, `${tag}: ${it.name} se escribe en otra altura (${back} vs ${it.midi + 12})`);
+    ok(it.y === 40 - (it.wo * 7 + LETS.indexOf(it.L) - 30) * 5, `${tag}: posición vertical mal`);
+    ok(Math.abs(it.off) <= 2, `${tag}: alteración rara ${it.acc}`);
+    sheetChecked++;
+  }
+  for (let i = 1; i < items.length; i++) ok(items[i].idx >= items[i - 1].idx, `${tag}: notas desordenadas`);
+};
+{ // referencias conocidas: E2 (cuerda al aire) se escribe E3 bajo el pentagrama; E4 sonando se escribe E5 en el espacio bajo la línea superior
+  const m = sheetModel([{ midi: 40 }, { midi: 64 }], null);
+  ok(m[0].label === 'E2' && m[0].y === 75, `E2 mal: ${JSON.stringify(m[0])}`);
+  ok(m[1].label === 'E4' && m[1].y === 5, `E4 mal: ${JSON.stringify(m[1])}`);
+}
+for (let root = 0; root < 12; root++) TPL.forEach((t, ti) => {
+  const c = makeChord(root, ti), st = pickStart(c); if (!st) return;
+  const notes = st.v.frets.map((f, k) => ({ midi: OPEN[st.v.s + k] + f }));
+  checkSheet(notes, c, `${c.rootName}${t.sym}`);
+});
+for (let m = 40; m <= 79; m++) checkSheet([{ midi: m }], null, `nota ${m}`);
+console.log(`notas de partitura verificadas: ${sheetChecked}`);
 console.log(`nombres en inglés revisados: ${enNamed}`);
 console.log(`comparaciones con fuerza bruta: ${agree}`);
 console.log(`formas verificadas: ${totalV}`);

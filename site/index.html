@@ -147,6 +147,14 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;display:grid;gap:.35rem}
 .sheet svg{width:100%;max-width:30rem;max-height:17rem;height:auto;color:var(--ink)}
 .sheet .cap{font-size:.74rem;color:var(--muted)}
+/* en pantallas anchas la partitura vive dentro del cuadro de arriba, entre la lectura y los botones */
+@media (min-width:860px){
+  .readout.hassheet{grid-template-columns:minmax(0,1fr) minmax(0,15rem) auto}
+  .readout .rd{grid-column:1}.readout .sheet{grid-column:2}.readout .ctl{grid-column:3}
+  .sheet.inline{background:none;border:0;padding:0;align-self:center;justify-items:center}
+  .sheet.inline .eyebrow,.sheet.inline .cap{display:none}
+  .sheet.inline svg{max-width:none;max-height:9.5rem}
+}
 #tip{position:fixed;z-index:60;left:0;top:0;background:var(--ink);color:var(--bg);font:600 .78rem/1.3 var(--font-b);padding:.35rem .6rem;border-radius:6px;pointer-events:none;max-width:16rem;opacity:0}
 #tip.show{opacity:1}
 </style>
@@ -660,7 +668,9 @@ function sheetModel(notes,chord){
   return items;
 }
 function renderSheet(notes,chord){
-  const box=$('sheet'); box.hidden=!sheetOpen; if(!sheetOpen) return;
+  const box=$('sheet'); box.hidden=!sheetOpen;
+  $('top').classList.toggle('hassheet',wideMq.matches&&sheetOpen);
+  if(!sheetOpen) return;
   const items=sheetModel(notes,chord), cx=96, W=190;
   const ys=items.map(i=>i.y), minY=Math.min(-22,...ys.map(y=>y-12)), maxY=Math.max(76,...ys.map(y=>y+12));
   let g='';
@@ -691,8 +701,11 @@ dlg.addEventListener('close',()=>{if(dlg.returnValue==='ok') applyBuilt(); dlg.r
 /* ---------- ubicación de los controles ---------- */
 const wideMq=matchMedia('(min-width:860px)');
 function placeCtl(){
-  if(wideMq.matches) $('top').appendChild($('ctl'));
-  else $('stage').insertBefore($('ctl'),$('hint').nextSibling);
+  const sh=$('sheet');
+  if(wideMq.matches){ $('top').appendChild($('ctl')); $('top').insertBefore(sh,$('ctl')); }
+  else{ $('stage').insertBefore($('ctl'),$('hint').nextSibling); $('stage').insertBefore(sh,$('ctl').nextSibling); }
+  sh.classList.toggle('inline',wideMq.matches);
+  $('top').classList.toggle('hassheet',wideMq.matches&&!sh.hidden);
 }
 wideMq.addEventListener('change',placeCtl); placeCtl();
 

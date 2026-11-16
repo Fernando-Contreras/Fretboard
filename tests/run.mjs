@@ -18,8 +18,8 @@ const fake = () => new Proxy(function () {}, {
 });
 const sandbox = { document: { getElementById: () => fake(), documentElement: { dataset: {} }, querySelectorAll: () => [], querySelector: () => null, createElement: () => fake(), body: fake(), addEventListener() {} }, innerWidth: 1000, window: {}, console, matchMedia: () => ({ matches: true, addEventListener() {} }) };
 vm.createContext(sandbox);
-const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT,setLang:l=>{lang=l},intName,symT,descT,invNames,tr,sheetModel})', sandbox);
-const { findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN, setLang, intName, symT, descT, invNames, sheetModel } = api;
+const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT,setLang:l=>{lang=l},setCapoVar:n=>{capo=n},intName,symT,descT,invNames,tr,sheetModel})', sandbox);
+const { setCapoVar, findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN, setLang, intName, symT, descT, invNames, sheetModel } = api;
 
 let fails = 0, checks = 0;
 const bad = (msg) => { fails++; if (fails <= 30) console.log('FALLA:', msg); };
@@ -122,6 +122,30 @@ for (let mask = 1; mask < 4096; mask++) {
 setLang('es');
 ok(intName(7) === '5ª justa' && symT(TPL[24]) === '7(sin 5)', 'el español cambió');
 
+// 5b) capo: con el capo en el traste N nada queda detrás de N, la "cuerda al aire" es el traste N,
+//     y cada forma sigue siendo correcta y tocable (relativa al capo)
+let capoV = 0, capoEmpty = 0;
+for (let cp = 1; cp <= 9; cp++) for (let root = 0; root < 12; root++) TPL.forEach((t, ti) => {
+  const c = makeChord(root, ti), pcs = c.tones.map(x => x.pc);
+  for (let n = c.tones.length; n <= 6; n++) c.tones.forEach((bt, bi) => {
+    const list = findVoicings(pcs, bt.pc, n, cp);
+    if (n === c.tones.length && !list.length) capoEmpty++;
+    for (const v of list) {
+      capoV++;
+      const midis = v.frets.map((f, k) => OPEN[v.s + k] + f), pset = new Set(midis.map(m => m % 12));
+      ok(v.frets.every(f => f >= cp && f <= 15), `capo ${cp} ${c.rootName}${t.sym}: traste detrás del capo [${v.frets}]`);
+      ok(v.rel.every((r, k) => r === v.frets[k] - cp), `capo ${cp}: rel mal calculado`);
+      ok(midis[0] % 12 === bt.pc, `capo ${cp} ${c.rootName}${t.sym}: bajo incorrecto`);
+      ok([...pset].every(p => pcs.includes(p)) && pcs.every(p => pset.has(p)), `capo ${cp} ${c.rootName}${t.sym}: notas incorrectas`);
+      ok(brutePlayable(v.s, v.rel), `capo ${cp} ${c.rootName}${t.sym}: IMPOSIBLE s${v.s} [${v.rel}]`);
+    }
+  });
+  setCapoVar(cp); const st = pickStart(c); setCapoVar(0);
+  if (st) ok(st.v.frets.every(f => f >= cp), `capo ${cp}: pickStart pone notas detrás del capo`);
+});
+// el capo en 0 no cambia nada respecto a lo de antes
+ok(findVoicings([0, 4, 7], 0, 3, 0).length === findVoicings([0, 4, 7], 0, 3).length, 'capo 0 distinto del default');
+
 // 6) partitura: cada nota escrita reproduce exactamente su altura (una octava arriba) y cae en la línea/espacio correcto
 const LETS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'], LETPCS = [0, 2, 4, 5, 7, 9, 11];
 let sheetChecked = 0;
@@ -148,6 +172,7 @@ for (let root = 0; root < 12; root++) TPL.forEach((t, ti) => {
   checkSheet(notes, c, `${c.rootName}${t.sym}`);
 });
 for (let m = 40; m <= 79; m++) checkSheet([{ midi: m }], null, `nota ${m}`);
+console.log(`formas con capo verificadas: ${capoV} (inversiones sin forma con capo: ${capoEmpty})`);
 console.log(`notas de partitura verificadas: ${sheetChecked}`);
 console.log(`nombres en inglés revisados: ${enNamed}`);
 console.log(`comparaciones con fuerza bruta: ${agree}`);

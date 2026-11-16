@@ -143,6 +143,15 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
 .bigbtn{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:0;padding:0;margin:0;text-align:left;cursor:pointer;overflow-wrap:anywhere;border-bottom:2px dashed var(--line)}
 .bigbtn::after{content:" ▾";font-size:.45em;color:var(--muted);vertical-align:middle}
 .bigbtn:hover{border-bottom-color:var(--accent)}.bigbtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+/* capo */
+.capo{display:none;pointer-events:none;z-index:3;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.55)}
+.capo.show{display:block}.capo.pv{opacity:.55}
+.board.h .capo{justify-self:end;width:.7rem;margin-right:.12rem;background:linear-gradient(90deg,#d3dad8,#8a9592)}
+.board.v .capo{align-self:end;height:.7rem;margin-bottom:.12rem;background:linear-gradient(180deg,#d3dad8,#8a9592)}
+.cell.dead{background:rgba(0,0,0,.4);cursor:not-allowed}.cell.dead .dot{opacity:.3}
+.btn.armed{border-style:dashed;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+#capo{touch-action:none}
+.dragghost{position:fixed;z-index:70;pointer-events:none;transform:translate(-50%,-120%);font-size:1.6rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,.5))}
 .linkbtn{font:600 .8rem var(--font-b);color:var(--accent);background:none;border:0;padding:.2rem 0;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;display:grid;gap:.35rem}
 .sheet svg{width:100%;max-width:30rem;max-height:17rem;height:auto;color:var(--ink)}
@@ -178,6 +187,7 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
         <button class="btn ib" id="clear" data-t="clear">🧹</button>
         <button class="btn ib" id="rotate" data-t="rotate">🔄</button>
         <button class="btn ib" id="build" data-t="sheet" aria-pressed="false">🎼</button>
+        <button class="btn ib" id="capo" aria-pressed="false">🗜️</button>
       </div>
       <div class="row">
         <span class="seg" role="group" aria-label="Notación" data-a="notation">
@@ -261,7 +271,7 @@ const intName=d=>{
 
 let sel=[null,null,null,null,null,null];
 let notation='let', showAll=false, autoStrum=false, orient=innerWidth<720?'v':'h';
-let curChord=null, sheetOpen=false, invOpen=true, invIdx=0, invMore=false, lastKey='', voiceList=[], pinned=null;
+let capo=0, capoArmed=false, curChord=null, sheetOpen=false, invOpen=true, invIdx=0, invMore=false, lastKey='', voiceList=[], pinned=null;
 
 const $=id=>document.getElementById(id);
 const fmt=n=>notation==='sol'?(SOL[n[0]]+n.slice(1)):n;
@@ -415,6 +425,7 @@ function build(){
     b.setAttribute('aria-label',cellLabel(s,f));
     const dot=document.createElement('span'); dot.className='dot off'; b.appendChild(dot);
     b.addEventListener('click',()=>onCell(s,f));
+    b.dataset.s=s; b.dataset.f=f;
     cells.push({s,f,el:b,dot}); board.appendChild(b);
   }
   layout();
@@ -426,27 +437,58 @@ function layout(){
   els.strLabs.forEach(l=>{const s=+l.dataset.s; if(h){const r=6-s;area(l,r,1,r+1,2)}else area(l,1,s+2,2,s+3)});
   els.fretLabs.forEach(l=>{const f=+l.dataset.f; h?area(l,7,f+2,8,f+3):area(l,f+2,1,f+3,2)});
   cells.forEach(c=>{ if(h){const r=6-c.s;area(c.el,r,c.f+2,r+1,c.f+3)}else area(c.el,c.f+2,c.s+2,c.f+3,c.s+3) });
+  drawCapo();
 }
 function onCell(s,f){
+  if(capoArmed){ capoArmed=false; if(f>=1) setCapo(f); else syncCapoBtn(); return; }
+  if(f<capo) return; // detrás del capo no se puede tocar
   pinned=null;
-  sel[s]=sel[s]===f?null:f;
+  // con capo, quitar una nota deja la cuerda en el traste del capo; tocar el capo mismo la silencia
+  sel[s]=sel[s]===f?((capo&&f>capo)?capo:null):f;
   update();
   const notes=getNotes();
   if(sel[s]===f){ if(autoStrum&&notes.length>1) strum(); else pluck(OPEN[s]+f) }
 }
 
+/* ---------- capo ---------- */
+/* Poner un capo en el traste N: todas las cuerdas quedan picadas ahí (las notas más agudas ya elegidas se conservan).
+   Moverlo: las cuerdas que estaban en el capo viejo se van al nuevo. Quitarlo: las cuerdas que solo tenían el capo se apagan. */
+function setCapo(n){
+  const old=capo; capo=n; pinned=null; capoArmed=false;
+  for(let s=0;s<6;s++){
+    const v=sel[s];
+    if(n===0){ if(v===old) sel[s]=null; }
+    else if(old===0){ if(v===null||v<n) sel[s]=n; }
+    else if(v!==null&&(v===old||v<n)) sel[s]=n;
+  }
+  drawCapo(); syncCapoBtn(); update();
+}
+const capoEl=document.createElement('div'); capoEl.className='capo'; capoEl.setAttribute('aria-hidden','true'); board.appendChild(capoEl);
+function drawCapo(preview){
+  const f=preview||capo; capoEl.classList.toggle('show',f>0); capoEl.classList.toggle('pv',!!preview);
+  if(f>0) orient==='h'?area(capoEl,1,f+2,7,f+3):area(capoEl,f+2,2,f+3,8);
+}
+function syncCapoBtn(){
+  const b=$('capo'); b.setAttribute('aria-pressed',capo>0); b.classList.toggle('armed',capoArmed);
+  const s=capoArmed?tr('Toca el traste donde va el capo','Tap the fret where the capo goes')
+    :capo?tr(`Capo en el traste ${capo} · toca para quitarlo, o arrástralo a otro traste`,`Capo on fret ${capo} · tap to remove, or drag it to another fret`)
+    :tr('Capo · arrástralo a un traste (o tócalo y luego toca un traste)','Capo · drag it onto a fret (or tap it, then tap a fret)');
+  b.dataset.tip=s; b.setAttribute('aria-label',s);
+}
+
 function renderBoard(chord){
   const map=chord?new Map(chord.tones.map(t=>[t.pc,t])):null;
   for(const c of cells){
-    const pc=(OPEN[c.s]+c.f)%12, on=sel[c.s]===c.f, t=map&&map.get(pc);
+    const pc=(OPEN[c.s]+c.f)%12, on=sel[c.s]===c.f, t=map&&map.get(pc), dead=c.f<capo;
     let cls='dot';
-    if(on) cls+=' on'+(c.f===0?' ring':'');
-    else if(showAll) cls+=t?' hint':' ghost';
+    if(on) cls+=' on'+(c.f===capo?' ring':'');
+    else if(showAll&&!dead) cls+=t?' hint':' ghost';
     else cls+=' off';
     c.dot.className=cls;
     c.dot.style.setProperty('--c',t?`var(--${t.role})`:'var(--neutral)');
-    c.dot.textContent=(on||showAll)?fmt(t?t.name:NEUTRAL[pc]):'';
+    c.dot.textContent=(on||(showAll&&!dead))?fmt(t?t.name:NEUTRAL[pc]):'';
     c.el.setAttribute('aria-pressed',on);
+    c.el.disabled=dead; c.el.classList.toggle('dead',dead);
   }
 }
 
@@ -522,22 +564,23 @@ function playable(s,fr){
   }
   return rec(0,0);
 }
-function findVoicings(pcs,bass,n){
-  // n = cuerdas seleccionadas: cada forma usa exactamente n cuerdas seguidas y repite notas si hace falta
+function findVoicings(pcs,bass,n,cp=0){
+  // n = cuerdas seleccionadas: cada forma usa exactamente n cuerdas seguidas y repite notas si hace falta.
+  // cp = traste del capo: ahí está la "cuerda al aire"; no hay trastes detrás. frets = absolutos, rel = relativos al capo.
   const res=[];
   for(let s=0;s<=6-n;s++){
     const fr=[],ms=[];
     (function go(i,rem){
       if(rem.size>n-i) return;
       if(i===n){
-        const fretted=fr.filter(f=>f>0), mx=fretted.length?Math.max(...fretted):0, mn=fretted.length?Math.min(...fretted):0;
-        if(fr.includes(0)&&mx>5) return;
-        if(!playable(s,fr)) return;
-        res.push({s,frets:[...fr],min:mn});
+        const rel=fr.map(f=>f-cp), fretted=rel.filter(f=>f>0), mx=fretted.length?Math.max(...fretted):0, mn=fretted.length?Math.min(...fretted):0;
+        if(rel.includes(0)&&mx>5) return;
+        if(!playable(s,rel)) return;
+        res.push({s,frets:[...fr],rel,min:mn});
         return;
       }
       const si=s+i;
-      for(let f=0;f<=FRETS;f++){
+      for(let f=cp;f<=FRETS;f++){
         const pc=(OPEN[si]+f)%12;
         if(i===0?pc!==bass:!pcs.includes(pc)) continue;
         const m=OPEN[si]+f; if(ms.includes(m)) continue;
@@ -550,16 +593,17 @@ function findVoicings(pcs,bass,n){
 }
 function diagram(v,c){
   const x0=14,dx=11.2,y0=24,dy=16;
-  const fretted=v.frets.filter(f=>f>0), mx=fretted.length?Math.max(...fretted):1, mn=fretted.length?Math.min(...fretted):1;
+  const rl=v.rel||v.frets, cp=v.frets[0]-rl[0]; // cp = capo (0 si no hay)
+  const fretted=rl.filter(f=>f>0), mx=fretted.length?Math.max(...fretted):1, mn=fretted.length?Math.min(...fretted):1;
   const start=mx<=5?1:mn;
   let g='';
   for(let i=0;i<6;i++) g+=`<line x1="${x0+i*dx}" y1="${y0}" x2="${x0+i*dx}" y2="${y0+5*dy}" stroke="var(--muted)" stroke-width="1" opacity=".7"/>`;
   for(let j=0;j<=5;j++) g+=`<line x1="${x0}" y1="${y0+j*dy}" x2="${x0+5*dx}" y2="${y0+j*dy}" stroke="var(--muted)" stroke-width="${j===0&&start===1?3.2:1}" opacity="${j===0&&start===1?1:.7}"/>`;
-  if(start>1) g+=`<text x="${x0-5}" y="${y0+dy/2+3}" text-anchor="end" font-size="8" font-family="var(--font-m)" fill="var(--ink)">${start}</text>`;
+  if(start>1||cp>0) g+=`<text x="${x0-5}" y="${y0+dy/2+3}" text-anchor="end" font-size="8" font-family="var(--font-m)" fill="var(--ink)">${start+cp}</text>`;
   for(let i=0;i<6;i++){
     const k=i-v.s;
     if(k<0||k>=v.frets.length){g+=`<text x="${x0+i*dx}" y="${y0-8}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="var(--font-m)">×</text>`;continue}
-    const f=v.frets[k], t=c.tones.find(t=>t.pc===(OPEN[i]+f)%12), col=`var(--${t.role})`, cx=x0+i*dx;
+    const f=rl[k], t=c.tones.find(t=>t.pc===(OPEN[i]+v.frets[k])%12), col=`var(--${t.role})`, cx=x0+i*dx;
     if(f===0) g+=`<circle cx="${cx}" cy="${y0-9}" r="3.6" fill="none" stroke="${col}" stroke-width="1.8"/>`;
     else{const cy=y0+(f-start)*dy+dy/2;g+=`<circle cx="${cx}" cy="${cy}" r="5.4" fill="${col}"/><text x="${cx}" y="${cy+2.6}" text-anchor="middle" font-size="7" font-weight="600" font-family="var(--font-m)" fill="var(--ontone)">${t.label}</text>`}
   }
@@ -575,13 +619,13 @@ function renderInv(c,notes){
   if(key!==lastKey){lastKey=key;invMore=false;invIdx=Math.max(0,c.tones.findIndex(t=>t.pc===notes[0].midi%12))}
   if(invIdx>=c.tones.length) invIdx=0;
   const pcs=c.tones.map(t=>t.pc);
-  const list=findVoicings(pcs,c.tones[invIdx].pc,n);
+  const list=findVoicings(pcs,c.tones[invIdx].pc,n,capo);
   voiceList=invMore?list:list.slice(0,12);
   const names=invNames();
   const tabs=c.tones.map((t,i)=>`<button class="tab" data-i="${i}" aria-pressed="${i===invIdx}">${names[i]}<small>${tr('bajo','bass')} ${fmt(t.name)}</small></button>`).join('');
   const cards=voiceList.map((v,i)=>{
-    const strs=v.frets.map((_,k)=>6-(v.s+k)).join('·'), mn=v.frets.filter(f=>f>0);
-    return `<button class="vcard" data-v="${i}">${diagram(v,c)}<span class="vmeta">${tr('cuerdas','strings')} ${strs}<br>${mn.length?tr('traste ','fret ')+Math.min(...mn):tr('al aire','open')}</span></button>`;
+    const strs=v.frets.map((_,k)=>6-(v.s+k)).join('·'), mn=v.frets.filter(f=>f>capo);
+    return `<button class="vcard" data-v="${i}">${diagram(v,c)}<span class="vmeta">${tr('cuerdas','strings')} ${strs}<br>${mn.length?tr('traste ','fret ')+Math.min(...mn):capo?'capo '+capo:tr('al aire','open')}</span></button>`;
   }).join('');
   const sub=list.length
     ?tr(`${list.length} formas de ${n} cuerdas seguidas${n>c.tones.length?' (repiten notas del acorde)':''}, ${names[invIdx].toLowerCase()}. Toca una para ponerla en el mástil.`,
@@ -615,7 +659,7 @@ function pickStart(c){
   const pcs=c.tones.map(t=>t.pc);
   for(let n=c.tones.length;n<=6;n++)
     for(let b=0;b<c.tones.length;b++){
-      const list=findVoicings(pcs,c.tones[b].pc,n);
+      const list=findVoicings(pcs,c.tones[b].pc,n,capo);
       if(list.length) return {v:list[0],n,bassIdx:b};
     }
   return null;
@@ -756,6 +800,7 @@ function applyLang(save){
   if(md) md.setAttribute('content',lang==='en'?'Tap notes on the guitar fretboard and see the note, interval or chord, with sound and inversions.':'Toca notas en el mástil de la guitarra y ve la nota, el intervalo o el acorde, con sonido e inversiones.');
   cells.forEach(c=>c.el.setAttribute('aria-label',cellLabel(c.s,c.f)));
   applyTheme(document.documentElement.dataset.theme||'light',false);
+  syncCapoBtn();
   if(dlg.open) buildDlgRender();
   if(save){try{localStorage.setItem('mastil-lang',lang)}catch(e){}}
   update();
@@ -768,10 +813,42 @@ function update(){
   if(pinned){const i=cands.findIndex(x=>x.root===pinned.root&&x.ti===pinned.ti);
     if(i<0) pinned=null; else if(i>0) cands.unshift(...cands.splice(i,1))}
   const chord=cands[0]||null; curChord=chord;
-  renderBoard(chord); renderReadout(notes,cands); renderSheet(notes,chord); renderInv(chord,notes);
+  renderBoard(chord); renderReadout(notes,cands);
+  if(capo){const ey=$('readout').querySelector('.eyebrow'); if(ey) ey.textContent+=' · capo '+capo} renderSheet(notes,chord); renderInv(chord,notes);
 }
 $('strum').onclick=()=>strum();
-$('clear').onclick=()=>{sel=[null,null,null,null,null,null];pinned=null;update()};
+$('clear').onclick=()=>{sel=[null,null,null,null,null,null];pinned=null;capo=0;capoArmed=false;drawCapo();syncCapoBtn();update()};
+
+/* arrastrar el capo (botón → traste). Tocar sin arrastrar: quita el capo, o lo "arma" para el siguiente toque en un traste. */
+{
+  const btn=$('capo'); let drag=null, ghost=null, over=0;
+  const cellAt=e=>{const el=document.elementFromPoint(e.clientX,e.clientY), c=el&&el.closest&&el.closest('.cell'); return c&&c.dataset.f?+c.dataset.f:0};
+  const end=()=>{if(ghost){ghost.remove();ghost=null} drawCapo(); drag=null; over=0};
+  btn.addEventListener('pointerdown',e=>{
+    if(e.button>0) return;
+    drag={x:e.clientX,y:e.clientY,moved:false};
+    try{btn.setPointerCapture(e.pointerId)}catch(_){}
+  });
+  btn.addEventListener('pointermove',e=>{
+    if(!drag) return;
+    if(!drag.moved&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>8){
+      drag.moved=true; hideTip(); ghost=document.createElement('div'); ghost.className='dragghost'; ghost.textContent=btn.textContent; document.body.appendChild(ghost);
+    }
+    if(drag.moved){
+      ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px';
+      const f=cellAt(e); if(f!==over){over=f; drawCapo(f>=1?f:undefined)}
+    }
+  });
+  btn.addEventListener('pointerup',e=>{
+    if(!drag) return;
+    if(drag.moved){const f=cellAt(e); end(); if(f>=1) setCapo(f); return}
+    end();
+    if(capo) setCapo(0); else {capoArmed=!capoArmed; syncCapoBtn()}
+  });
+  btn.addEventListener('pointercancel',end);
+  btn.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault(); if(capo) setCapo(0); else {capoArmed=!capoArmed; syncCapoBtn()}} });
+  btn.addEventListener('click',e=>e.preventDefault());
+}
 $('rotate').onclick=()=>{orient=orient==='v'?'h':'v';layout()};
 $('n-let').onclick=()=>{notation='let';$('n-let').setAttribute('aria-pressed',true);$('n-sol').setAttribute('aria-pressed',false);update()};
 $('n-sol').onclick=()=>{notation='sol';$('n-sol').setAttribute('aria-pressed',true);$('n-let').setAttribute('aria-pressed',false);update()};

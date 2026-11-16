@@ -16,10 +16,10 @@ const fake = () => new Proxy(function () {}, {
   get: (_, k) => (k === Symbol.toPrimitive ? () => '' : k === 'length' ? 0 : k === 'style' ? {} : fake()),
   set: () => true, apply: () => fake(),
 });
-const sandbox = { document: { getElementById: () => fake(), documentElement: { dataset: {} }, querySelectorAll: () => [], createElement: () => fake() }, innerWidth: 1000, window: {}, console, matchMedia: () => ({ matches: true, addEventListener() {} }) };
+const sandbox = { document: { getElementById: () => fake(), documentElement: { dataset: {} }, querySelectorAll: () => [], querySelector: () => null, createElement: () => fake(), body: fake(), addEventListener() {} }, innerWidth: 1000, window: {}, console, matchMedia: () => ({ matches: true, addEventListener() {} }) };
 vm.createContext(sandbox);
-const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT})', sandbox);
-const { findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN } = api;
+const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT,setLang:l=>{lang=l},intName,symT,descT,invNames,tr})', sandbox);
+const { findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN, setLang, intName, symT, descT, invNames } = api;
 
 let fails = 0, checks = 0;
 const bad = (msg) => { fails++; if (fails <= 30) console.log('FALLA:', msg); };
@@ -106,6 +106,23 @@ for (let mask = 1; mask < 4096; mask++) {
   ok(detect(notes).length > 0, `sin nombre para pcs ${pcs}`); combos++;
 }
 
+// 5) inglés: nada de español en nombres de intervalos, acordes e inversiones
+setLang('en');
+const ES = /\b(sin|mayor|menor|aumentad|disminuid|suspendid|dominante|quinta|octava|justa|inversi|Fundamental|Tritono|Un[ií]sono|a[ñn]adida|con)\b|ª/i;
+for (let d = 0; d <= 39; d++) ok(!ES.test(intName(d)), `intervalo ${d} sigue en español: ${intName(d)}`);
+TPL.forEach(t => { ok(!!t.en, `falta traducción: ${t.sym}`); ok(!ES.test(descT(t)), `descripción en español: ${descT(t)}`); ok(!/sin /.test(symT(t)), `símbolo con "sin": ${symT(t)}`); });
+invNames().forEach(n => ok(!ES.test(n), `inversión en español: ${n}`));
+let enNamed = 0;
+for (let mask = 1; mask < 4096; mask++) {
+  const pcs = []; for (let i = 0; i < 12; i++) if (mask >> i & 1) pcs.push(i);
+  if (pcs.length < 3 || pcs.length > 6) continue;
+  const notes = pcs.map((p, i) => ({ midi: 40 + p + (i ? 12 : 0), s: 0, f: 0 })).sort((a, b) => a.midi - b.midi);
+  for (const c of detect(notes)) { ok(!ES.test(descT(c.t)), `descripción en español: ${descT(c.t)} (${pcs})`); ok(!/sin /.test(symT(c.t)), `símbolo en español: ${symT(c.t)}`); enNamed++; }
+}
+setLang('es');
+ok(intName(7) === '5ª justa' && symT(TPL[24]) === '7(sin 5)', 'el español cambió');
+
+console.log(`nombres en inglés revisados: ${enNamed}`);
 console.log(`comparaciones con fuerza bruta: ${agree}`);
 console.log(`formas verificadas: ${totalV}`);
 console.log(`combinaciones de 3-6 notas con nombre: ${combos}`);

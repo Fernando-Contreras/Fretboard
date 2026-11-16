@@ -136,6 +136,15 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
 .opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .bprev{font-size:.85rem;color:var(--muted)}.bprev b{font:800 1.3rem var(--font-d);color:var(--ink);display:block}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
+
+/* botones de ícono, nombre del acorde como botón y tooltips */
+.btn.ib{min-width:2.9rem;padding:.4rem .6rem;font-size:1.15rem;line-height:1}
+[data-tip]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.bigbtn{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:0;padding:0;margin:0;text-align:left;cursor:pointer;overflow-wrap:anywhere;border-bottom:2px dashed var(--line)}
+.bigbtn::after{content:" ▾";font-size:.45em;color:var(--muted);vertical-align:middle}
+.bigbtn:hover{border-bottom-color:var(--accent)}.bigbtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+#tip{position:fixed;z-index:60;left:0;top:0;background:var(--ink);color:var(--bg);font:600 .78rem/1.3 var(--font-b);padding:.35rem .6rem;border-radius:6px;pointer-events:none;max-width:16rem;opacity:0}
+#tip.show{opacity:1}
 </style>
 </head>
 <body>
@@ -143,8 +152,9 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
   <header>
     <h1>Mástil</h1>
     <div class="hright">
-      <span class="tag">6 CUERDAS · AFINACIÓN E A D G B E · 15 TRASTES</span>
-      <button class="btn icon" id="theme" aria-label="Cambiar entre tema claro y oscuro" title="Tema claro / oscuro">☾</button>
+      <span class="tag" data-i="tag">6 CUERDAS · AFINACIÓN E A D G B E · 15 TRASTES</span>
+      <button class="btn icon" id="lang" aria-label="Switch to English" data-tip="English">EN</button>
+      <button class="btn icon" id="theme" aria-label="Cambiar entre tema claro y oscuro" data-tip="Tema claro / oscuro">☾</button>
     </div>
   </header>
 
@@ -152,23 +162,23 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
     <div class="rd" id="readout" aria-live="polite"></div>
     <div class="ctl" id="ctl">
       <div class="row">
-        <button class="btn primary" id="strum">Tocar</button>
-        <button class="btn" id="clear">Limpiar</button>
-        <button class="btn" id="rotate">Girar mástil</button>
-        <button class="btn" id="build">Seleccionar acorde…</button>
+        <button class="btn primary ib" id="strum" data-t="strum">▶</button>
+        <button class="btn ib" id="clear" data-t="clear">🧹</button>
+        <button class="btn ib" id="rotate" data-t="rotate">🔄</button>
+        <button class="btn ib" id="build" data-t="build">🎼</button>
       </div>
       <div class="row">
-        <span class="seg" role="group" aria-label="Notación">
+        <span class="seg" role="group" aria-label="Notación" data-a="notation">
           <button class="btn" id="n-let" aria-pressed="true">C D E</button><button class="btn" id="n-sol" aria-pressed="false">Do Re Mi</button>
         </span>
-        <button class="btn" id="showall" aria-pressed="false">Ver todas las notas</button>
-        <button class="btn" id="autostrum" aria-pressed="false">Sonar acorde al agregar</button>
+        <button class="btn ib" id="showall" aria-pressed="false" data-t="showall">👁</button>
+        <button class="btn ib" id="autostrum" aria-pressed="false" data-t="autostrum">🔊</button>
       </div>
     </div>
   </section>
 
   <section class="stage" id="stage">
-    <div class="hintline" id="hint">Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.</div>
+    <div class="hintline" id="hint" data-i="hint">Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.</div>
     <div class="scroller"><div class="board v" id="board"></div></div>
     <div class="row" id="invrow" hidden><button class="btn" id="invbtn" aria-expanded="false">Inversiones ▾</button></div>
   </section>
@@ -177,14 +187,14 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
 </div>
 
 <dialog class="builder" id="builder" aria-labelledby="btitle">
-  <div class="bhead"><h2 id="btitle">Seleccionar acorde</h2><button class="btn icon" id="bx" aria-label="Cancelar">✕</button></div>
+  <div class="bhead"><h2 id="btitle" data-i="build0">Seleccionar acorde</h2><button class="btn icon" id="bx" aria-label="Cancelar" data-a="cancel">✕</button></div>
   <div class="bbody">
-    <div><h3>Nota raíz</h3><div class="rootgrid" id="broots"></div></div>
-    <div><h3>Tipo de acorde</h3><div class="typegrid" id="btypes"></div></div>
+    <div><h3 data-i="hroot">Nota raíz</h3><div class="rootgrid" id="broots"></div></div>
+    <div><h3 data-i="htype">Tipo de acorde</h3><div class="typegrid" id="btypes"></div></div>
   </div>
   <div class="bfoot">
     <div class="bprev" id="bprev" aria-live="polite"></div>
-    <button class="btn primary" id="bok">Listo</button>
+    <button class="btn primary" id="bok" data-i="bok">Listo</button>
   </div>
 </dialog>
 
@@ -210,14 +220,36 @@ const TPL_SRC=[
  ['1 5','5','quinta (power chord)']
 ];
 const pretty=s=>s.replace(/b/g,'♭').replace(/#/g,'♯');
-const TPL=TPL_SRC.map(([d,sym,es,minor])=>({sym,es,minor:!!minor,tones:d.split(' ').map(k=>({token:k,step:DEG[k][0],semis:DEG[k][1]===undefined?0:DEG[k][1],label:k==='1'?'R':pretty(k),role:ROLE[k]||'x'}))}));
+const TPL_EN=['major','minor','diminished','augmented','suspended 2','suspended 4','dominant (minor 7th)','major with major 7th','minor with minor 7th','minor with major 7th','half-diminished','diminished with diminished 7th','major with 6th','minor with 6th','dominant with augmented 5th','dominant suspended 4','major with added 9th','minor with added 9th','dominant with 9th','major with 7th and 9th','minor with 7th and 9th','major with 6th and 9th','dominant with minor 9th','dominant with augmented 9th','dominant, no 5th','major 7th, no 5th','minor 7, no 5th','fifth (power chord)'];
+const TPL=TPL_SRC.map(([d,sym,es,minor],i)=>({sym,es,en:TPL_EN[i],minor:!!minor,tones:d.split(' ').map(k=>({token:k,step:DEG[k][0],semis:DEG[k][1]===undefined?0:DEG[k][1],label:k==='1'?'R':pretty(k),role:ROLE[k]||'x'}))}));
 // semis reales (los de 9ª se guardan módulo 12 por DEG)
 const INT={0:'Unísono',1:'2ª menor',2:'2ª mayor',3:'3ª menor',4:'3ª mayor',5:'4ª justa',6:'Tritono',7:'5ª justa',8:'6ª menor',9:'6ª mayor',10:'7ª menor',11:'7ª mayor',12:'Octava',13:'9ª menor',14:'9ª mayor',15:'3ª menor + 8ª',16:'3ª mayor + 8ª',17:'11ª justa',18:'Tritono + 8ª',19:'5ª justa + 8ª',20:'6ª menor + 8ª',21:'6ª mayor + 8ª',22:'7ª menor + 8ª',23:'7ª mayor + 8ª',24:'Doble octava'};
-const intName=d=>{if(INT[d])return INT[d];const o=Math.floor(d/12),r=d%12;return r===0?o+' octavas':INT[r]+' + '+o+(o>1?' octavas':' octava')};
+const INT_EN={0:'Unison',1:'Minor 2nd',2:'Major 2nd',3:'Minor 3rd',4:'Major 3rd',5:'Perfect 4th',6:'Tritone',7:'Perfect 5th',8:'Minor 6th',9:'Major 6th',10:'Minor 7th',11:'Major 7th',12:'Octave',13:'Minor 9th',14:'Major 9th',15:'Minor 3rd + octave',16:'Major 3rd + octave',17:'Perfect 11th',18:'Tritone + octave',19:'Perfect 5th + octave',20:'Minor 6th + octave',21:'Major 6th + octave',22:'Minor 7th + octave',23:'Major 7th + octave',24:'Two octaves'};
+
+/* ---------- idioma ---------- */
+let lang='es';
+try{const s=localStorage.getItem('mastil-lang'); lang=(s==='es'||s==='en')?s:((navigator.language||'es').toLowerCase().startsWith('es')?'es':'en')}catch(e){}
+const tr=(es,en)=>lang==='en'?en:es;
+const D={
+  tag:['6 CUERDAS · AFINACIÓN E A D G B E · 15 TRASTES','6 STRINGS · E A D G B E TUNING · 15 FRETS'],
+  strum:['Tocar','Strum'],clear:['Limpiar','Clear'],rotate:['Girar mástil','Rotate neck'],build:['Seleccionar acorde…','Select chord…'],
+  showall:['Ver todas las notas','Show all notes'],autostrum:['Sonar acorde al agregar','Strum when adding notes'],
+  hint:['Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.','One note per string: tapping another fret on the same string replaces it, tapping it again removes it.'],
+  build0:['Seleccionar acorde','Select chord'],hroot:['Nota raíz','Root note'],htype:['Tipo de acorde','Chord type'],bok:['Listo','Done'],
+  cancel:['Cancelar','Cancel'],notation:['Notación','Notation']
+};
+const symT=t=>lang==='en'?t.sym.replace(/sin (\d)/g,'no $1'):t.sym;
+const descT=t=>lang==='en'&&t.en?t.en:t.es;
+const intName=d=>{
+  const I=lang==='en'?INT_EN:INT;
+  if(I[d])return I[d];
+  const o=Math.floor(d/12),r=d%12, w=lang==='en'?(o>1?' octaves':' octave'):(o>1?' octavas':' octava');
+  return r===0?o+(lang==='en'?' octaves':' octavas'):I[r]+' + '+o+w;
+};
 
 let sel=[null,null,null,null,null,null];
 let notation='let', showAll=false, autoStrum=false, orient=innerWidth<720?'v':'h';
-let invOpen=false, invIdx=0, invMore=false, lastKey='', voiceList=[], pinned=null;
+let curChord=null, invOpen=false, invIdx=0, invMore=false, lastKey='', voiceList=[], pinned=null;
 
 const $=id=>document.getElementById(id);
 const fmt=n=>notation==='sol'?(SOL[n[0]]+n.slice(1)):n;
@@ -297,15 +329,19 @@ function describe(root,pcs,bass){
     fifth==='P'?'5ª justa':fifth==='d'?'5ª disminuida':fifth==='A'?'5ª aumentada':'sin 5ª',
     sev==='M'?'7ª mayor':sev==='m'?'7ª menor':sev==='d'?'7ª disminuida':six?'6ª':null,
     ...extL.map(l=>'+ '+l)].filter(Boolean).join(', ');
+  const en=[third==='M'?'major 3rd':third==='m'?'minor 3rd':third==='s2'?'suspended 2':third==='s4'?'suspended 4':'no 3rd',
+    fifth==='P'?'perfect 5th':fifth==='d'?'diminished 5th':fifth==='A'?'augmented 5th':'no 5th',
+    sev==='M'?'major 7th':sev==='m'?'minor 7th':sev==='d'?'diminished 7th':six?'6th':null,
+    ...extL.map(l=>'+ '+l)].filter(Boolean).join(', ');
   const score=alt.length*2+ext.length*2+(third?0:3)+(third==='s2'||third==='s4'?1:0)+(fifth?0:1)+(root===bass?0:1);
-  return {root,rootName,t:{sym,es,minor:third==='m'},ti:100,tones,bassIsRoot:root===bass,score};
+  return {root,rootName,t:{sym,es,en,minor:third==='m'},ti:100,tones,bassIsRoot:root===bass,score};
 }
 function fallback(pcs,bass){
   if(pcs.length<3) return [];
   return pcs.map(r=>describe(r,pcs,bass)).sort((a,b)=>(a.score-b.score)||(b.bassIsRoot-a.bassIsRoot));
 }
 const symOf=(c,bassPc)=>{
-  let s=fmt(c.rootName)+c.t.sym;
+  let s=fmt(c.rootName)+symT(c.t);
   if(bassPc!==c.root){const b=c.tones.find(t=>t.pc===bassPc);s+='/'+fmt(b.name)}
   return s;
 };
@@ -346,6 +382,7 @@ function strum(){getNotes().forEach((n,i)=>pluck(n.midi,i*.045))}
 
 /* ---------- mástil ---------- */
 const board=$('board'); const cells=[]; const els={wood:null,inlays:[],strLabs:[],fretLabs:[]};
+const cellLabel=(s,f)=>tr(`Cuerda ${6-s}, traste ${f}, `,`String ${6-s}, fret ${f}, `)+NEUTRAL[(OPEN[s]+f)%12];
 const area=(el,r1,c1,r2,c2)=>{el.style.gridArea=`${r1} / ${c1} / ${r2} / ${c2}`};
 function build(){
   const wood=document.createElement('div'); wood.className='wood'; els.wood=wood; board.appendChild(wood);
@@ -363,7 +400,7 @@ function build(){
     const b=document.createElement('button'); b.className='cell'+(f===0?' open':'');
     b.style.setProperty('--sw',[3.2,2.6,2.1,1.7,1.3,1][s]+'px');
     b.style.setProperty('--sc',s<3?'var(--str-wound)':'var(--str-plain)');
-    b.setAttribute('aria-label',`Cuerda ${6-s}, traste ${f}, ${NEUTRAL[(OPEN[s]+f)%12]}`);
+    b.setAttribute('aria-label',cellLabel(s,f));
     const dot=document.createElement('span'); dot.className='dot off'; b.appendChild(dot);
     b.addEventListener('click',()=>onCell(s,f));
     cells.push({s,f,el:b,dot}); board.appendChild(b);
@@ -406,33 +443,34 @@ function chip(role,label,text){return `<span class="chip"><i style="--c:var(--${
 function renderReadout(notes,cands){
   const el=$('readout'); let h='';
   if(!notes.length){
-    h=`<div class="eyebrow">Mástil vacío</div><div class="big sm">Toca una nota</div><div class="sub">Con una nota ves su nombre, con dos el intervalo y con tres o más el acorde.</div>`;
+    h=`<div class="eyebrow">${tr('Mástil vacío','Empty fretboard')}</div><div class="big sm">${tr('Toca una nota','Tap a note')}</div><div class="sub">${tr('Con una nota ves su nombre, con dos el intervalo y con tres o más el acorde.','One note shows its name, two show the interval, three or more show the chord.')}</div>`;
   }else if(notes.length===1){
     const n=notes[0], pc=n.midi%12, nm=NEUTRAL[pc];
-    h=`<div class="eyebrow">Nota</div><div class="big">${fmt(nm)}</div><div class="sub">${altFmt(nm)} · ${nm}${oct(n.midi)} · ${hz(n.midi).toFixed(1)} Hz · cuerda ${6-n.s}, traste ${n.f}</div>`;
+    h=`<div class="eyebrow">${tr('Nota','Note')}</div><div class="big">${fmt(nm)}</div><div class="sub">${altFmt(nm)} · ${nm}${oct(n.midi)} · ${hz(n.midi).toFixed(1)} Hz · ${tr('cuerda','string')} ${6-n.s}, ${tr('traste','fret')} ${n.f}</div>`;
   }else if(notes.length===2){
     const [a,b]=notes, d=b.midi-a.midi, an=NEUTRAL[a.midi%12], bn=NEUTRAL[b.midi%12];
-    h=`<div class="eyebrow">Intervalo</div><div class="big">${intName(d)}</div><div class="sub">${fmt(an)}${oct(a.midi)} → ${fmt(bn)}${oct(b.midi)} · ${d} ${d===1?'semitono':'semitonos'}</div>
+    h=`<div class="eyebrow">${tr('Intervalo','Interval')}</div><div class="big">${intName(d)}</div><div class="sub">${fmt(an)}${oct(a.midi)} → ${fmt(bn)}${oct(b.midi)} · ${d} ${d===1?tr('semitono','semitone'):tr('semitonos','semitones')}</div>
        <div class="chips">${chip('neutral','•',fmt(an)+oct(a.midi))}${chip('neutral','•',fmt(bn)+oct(b.midi))}</div>`;
   }else if(cands.length){
     const c=cands[0], bassPc=notes[0].midi%12, bt=c.tones.find(t=>t.pc===bassPc), bi=c.tones.indexOf(bt);
     const chips=notes.map(n=>{const t=c.tones.find(t=>t.pc===n.midi%12);return chip(t.role,t.label,fmt(t.name)+oct(n.midi))}).join('');
     const alts=cands.slice(1,5).map(x=>`<b>${symOf(x,bassPc)}</b>`).join(' · ');
-    h=`<div class="rhead"><div><div class="eyebrow">Acorde${bi>0?' · '+bi+'ª inversión':''}</div><div class="big">${symOf(c,bassPc)}</div></div></div>
-       <div class="sub">${fmt(c.rootName)} ${c.t.es}${bi>0?' · bajo en '+fmt(bt.name):''}</div>
-       <div class="chips">${chips}</div>${alts?`<div class="alt">También se lee: ${alts}</div>`:''}`;
+    h=`<div class="rhead"><div><div class="eyebrow">${tr('Acorde','Chord')}${bi>0?' · '+invNames()[bi].toLowerCase():''}</div><div class="big"><button class="bigbtn" id="chordbtn" data-tip="${tr('Elegir otro acorde','Choose another chord')}">${symOf(c,bassPc)}</button></div></div></div>
+       <div class="sub">${fmt(c.rootName)} ${descT(c.t)}${bi>0?tr(' · bajo en ',' · bass on ')+fmt(bt.name):''}</div>
+       <div class="chips">${chips}</div>${alts?`<div class="alt">${tr('También se lee: ','Also reads as: ')}${alts}</div>`:''}`;
   }else{
     // 3+ cuerdas pero solo 1 o 2 nombres de nota distintos: no es un acorde, se lee como nota o intervalo
     const b=notes[0].midi%12, pcs=[...new Set(notes.map(n=>n.midi%12))];
     const chips=notes.map(n=>chip('neutral','•',fmt(NEUTRAL[n.midi%12])+oct(n.midi))).join('');
-    if(pcs.length===1) h=`<div class="eyebrow">Nota repetida</div><div class="big">${fmt(NEUTRAL[b])}</div><div class="sub">${notes.length} cuerdas con la misma nota, en distintas octavas.</div><div class="chips">${chips}</div>`;
+    if(pcs.length===1) h=`<div class="eyebrow">${tr('Nota repetida','Repeated note')}</div><div class="big">${fmt(NEUTRAL[b])}</div><div class="sub">${notes.length} ${tr('cuerdas con la misma nota, en distintas octavas.','strings with the same note, in different octaves.')}</div><div class="chips">${chips}</div>`;
     else{const d=mod(pcs.find(p=>p!==b)-b,12);
-      h=`<div class="eyebrow">Intervalo</div><div class="big">${INT[d]}</div><div class="sub">Solo ${pcs.length} notas distintas (${pcs.map(p=>fmt(NEUTRAL[p])).join(' y ')}), así que no forman un acorde.</div><div class="chips">${chips}</div>`}
+      h=`<div class="eyebrow">${tr('Intervalo','Interval')}</div><div class="big">${intName(d)}</div><div class="sub">${tr('Solo '+pcs.length+' notas distintas ('+pcs.map(p=>fmt(NEUTRAL[p])).join(' y ')+'), así que no forman un acorde.','Only '+pcs.length+' different notes ('+pcs.map(p=>fmt(NEUTRAL[p])).join(' and ')+'), so they do not form a chord.')}</div><div class="chips">${chips}</div>`}
   }
   el.innerHTML=h;
+  const cb=$('chordbtn'); if(cb) cb.onclick=()=>openBuilder(cands[0]);
   const ib=$('invbtn'), has=notes.length>=3&&cands.length>0;
   $('invrow').hidden=!has;
-  ib.setAttribute('aria-expanded',invOpen); ib.textContent='Inversiones '+(invOpen?'▴':'▾');
+  ib.setAttribute('aria-expanded',invOpen); ib.textContent=tr('Inversiones ','Inversions ')+(invOpen?'▴':'▾');
 }
 $('invbtn').onclick=()=>{invOpen=!invOpen;update()};
 
@@ -514,6 +552,9 @@ function diagram(v,c){
   }
   return `<svg viewBox="-4 0 90 112" role="img" aria-hidden="true">${g}</svg>`;
 }
+const invNames=()=>lang==='en'
+  ?['Root position','1st inversion','2nd inversion','3rd inversion','4th inversion','5th inversion']
+  :['Fundamental','1ª inversión','2ª inversión','3ª inversión','4ª inversión','5ª inversión'];
 function renderInv(c,notes){
   const box=$('inv');
   if(!c||!invOpen){box.hidden=true;voiceList=[];return}
@@ -523,17 +564,21 @@ function renderInv(c,notes){
   const pcs=c.tones.map(t=>t.pc);
   const list=findVoicings(pcs,c.tones[invIdx].pc,n);
   voiceList=invMore?list:list.slice(0,12);
-  const names=['Fundamental','1ª inversión','2ª inversión','3ª inversión','4ª inversión','5ª inversión'];
-  const tabs=c.tones.map((t,i)=>`<button class="tab" data-i="${i}" aria-pressed="${i===invIdx}">${names[i]}<small>bajo ${fmt(t.name)}</small></button>`).join('');
+  const names=invNames();
+  const tabs=c.tones.map((t,i)=>`<button class="tab" data-i="${i}" aria-pressed="${i===invIdx}">${names[i]}<small>${tr('bajo','bass')} ${fmt(t.name)}</small></button>`).join('');
   const cards=voiceList.map((v,i)=>{
     const strs=v.frets.map((_,k)=>6-(v.s+k)).join('·'), mn=v.frets.filter(f=>f>0);
-    return `<button class="vcard" data-v="${i}">${diagram(v,c)}<span class="vmeta">cuerdas ${strs}<br>${mn.length?'traste '+Math.min(...mn):'al aire'}</span></button>`;
+    return `<button class="vcard" data-v="${i}">${diagram(v,c)}<span class="vmeta">${tr('cuerdas','strings')} ${strs}<br>${mn.length?tr('traste ','fret ')+Math.min(...mn):tr('al aire','open')}</span></button>`;
   }).join('');
-  box.innerHTML=`<h2>Inversiones de ${fmt(c.rootName)}${c.t.sym}</h2>
+  const sub=list.length
+    ?tr(`${list.length} formas de ${n} cuerdas seguidas${n>c.tones.length?' (repiten notas del acorde)':''}, ${names[invIdx].toLowerCase()}. Toca una para ponerla en el mástil.`,
+        `${list.length} shapes on ${n} adjacent strings${n>c.tones.length?' (repeating chord notes)':''}, ${names[invIdx].toLowerCase()}. Tap one to place it on the fretboard.`)
+    :tr(`No hay formas de ${n} cuerdas seguidas tocables en los primeros 15 trastes.`,`No playable shapes on ${n} adjacent strings within the first 15 frets.`);
+  box.innerHTML=`<h2>${tr('Inversiones de ','Inversions of ')}${fmt(c.rootName)}${symT(c.t)}</h2>
     <div class="tabs">${tabs}</div>
-    <div class="sub">${list.length?`${list.length} formas de ${n} cuerdas seguidas${n>c.tones.length?' (repiten notas del acorde)':''}, ${names[invIdx].toLowerCase()}. Toca una para ponerla en el mástil.`:`No hay formas de ${n} cuerdas seguidas tocables en los primeros 15 trastes.`}</div>
+    <div class="sub">${sub}</div>
     <div class="vgrid">${cards}</div>
-    ${!invMore&&list.length>12?`<div><button class="btn" id="more">Mostrar las ${list.length}</button></div>`:''}`;
+    ${!invMore&&list.length>12?`<div><button class="btn" id="more">${tr('Mostrar las ','Show all ')}${list.length}</button></div>`:''}`;
   box.hidden=false;
   box.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{invIdx=+b.dataset.i;invMore=false;update()});
   box.querySelectorAll('.vcard').forEach(b=>b.onclick=()=>applyVoicing(voiceList[+b.dataset.v],c));
@@ -566,11 +611,11 @@ let bRoot=0,bTi=0;
 const ROOT_LAB=['C','C♯/D♭','D','D♯/E♭','E','F','F♯/G♭','G','G♯/A♭','A','A♯/B♭','B'];
 function buildDlgRender(){
   $('broots').innerHTML=ROOT_LAB.map((l,i)=>`<button class="opt" data-r="${i}" aria-pressed="${i===bRoot}">${notation==='sol'?l.replace(/[A-G]/g,m=>SOL[m]):l}</button>`).join('');
-  $('btypes').innerHTML=TPL.map((t,i)=>`<button class="opt" data-t="${i}" aria-pressed="${i===bTi}">${t.sym||'Mayor'}<small>${t.es}</small></button>`).join('');
+  $('btypes').innerHTML=TPL.map((t,i)=>`<button class="opt" data-t="${i}" aria-pressed="${i===bTi}">${symT(t)||tr('Mayor','Major')}<small>${descT(t)}</small></button>`).join('');
   $('broots').querySelectorAll('.opt').forEach(b=>b.onclick=()=>{bRoot=+b.dataset.r;buildDlgRender()});
   $('btypes').querySelectorAll('.opt').forEach(b=>b.onclick=()=>{bTi=+b.dataset.t;buildDlgRender()});
   const c=makeChord(bRoot,bTi), st=pickStart(c);
-  $('bprev').innerHTML=`<b>${fmt(c.rootName)}${c.t.sym}</b>${c.tones.map(t=>fmt(t.name)).join(' · ')}${st?'':'<br>No hay forma tocable de este acorde en los primeros 15 trastes.'}`;
+  $('bprev').innerHTML=`<b>${fmt(c.rootName)}${symT(c.t)}</b>${c.tones.map(t=>fmt(t.name)).join(' · ')}${st?'':'<br>'+tr('No hay forma tocable de este acorde en los primeros 15 trastes.','No playable shape of this chord within the first 15 frets.')}`;
   $('bok').disabled=!st;
 }
 function applyBuilt(){
@@ -581,7 +626,11 @@ function applyBuilt(){
   update(); strum();
 }
 const dlg=$('builder');
-$('build').onclick=()=>{buildDlgRender();dlg.showModal()};
+function openBuilder(c){
+  if(c&&c.ti<TPL.length){bRoot=c.root;bTi=c.ti}
+  buildDlgRender(); dlg.showModal();
+}
+$('build').onclick=()=>openBuilder(curChord);
 $('bx').onclick=()=>dlg.close('cancel');
 $('bok').onclick=()=>dlg.close('ok');
 dlg.addEventListener('click',e=>{if(e.target===dlg) dlg.close('cancel')});
@@ -595,23 +644,69 @@ function placeCtl(){
 }
 wideMq.addEventListener('change',placeCtl); placeCtl();
 
+/* ---------- tooltips (mouse: al pasar; teclado: al enfocar; celular: presión larga) ---------- */
+const tipEl=document.createElement('div'); tipEl.id='tip'; tipEl.setAttribute('role','tooltip'); document.body.appendChild(tipEl);
+let tipTimer=null, tipHide=null, swallow=false;
+function showTip(el){
+  const t=el.dataset.tip; if(!t) return;
+  tipEl.textContent=t; tipEl.classList.add('show');
+  const r=el.getBoundingClientRect(), w=tipEl.offsetWidth, h=tipEl.offsetHeight;
+  let top=r.bottom+8; if(top+h>innerHeight-4) top=r.top-h-8;
+  tipEl.style.left=Math.max(6,Math.min(innerWidth-w-6,r.left+r.width/2-w/2))+'px';
+  tipEl.style.top=Math.max(4,top)+'px';
+}
+function hideTip(){tipEl.classList.remove('show');clearTimeout(tipHide)}
+const tipOf=e=>e.target.closest&&e.target.closest('[data-tip]');
+document.addEventListener('pointerover',e=>{if(e.pointerType==='mouse'){const b=tipOf(e); if(b) showTip(b)}});
+document.addEventListener('pointerout',e=>{if(e.pointerType==='mouse'&&tipOf(e)) hideTip()});
+document.addEventListener('focusin',e=>{const b=tipOf(e); if(b&&b.matches(':focus-visible')) showTip(b)});
+document.addEventListener('focusout',hideTip);
+document.addEventListener('pointerdown',e=>{
+  clearTimeout(tipTimer); if(e.pointerType==='mouse') return;
+  const b=tipOf(e); if(!b) return;
+  tipTimer=setTimeout(()=>{swallow=true;showTip(b);clearTimeout(tipHide);tipHide=setTimeout(hideTip,2000)},450);
+});
+['pointerup','pointercancel','pointermove'].forEach(ev=>document.addEventListener(ev,e=>{
+  if(e.pointerType==='mouse') return;
+  clearTimeout(tipTimer); if(ev==='pointerup') setTimeout(()=>{swallow=false},350);
+}));
+document.addEventListener('click',e=>{if(swallow){e.preventDefault();e.stopPropagation();swallow=false}},true);
+document.addEventListener('contextmenu',e=>{if(tipOf(e)) e.preventDefault()});
+
 /* ---------- tema ---------- */
 function applyTheme(t,save){
   document.documentElement.dataset.theme=t;
   document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute('content',t==='dark'?'#0d1211':'#e8ece9'));
   const b=$('theme'); b.textContent=t==='dark'?'☀':'☾';
-  b.setAttribute('aria-label',t==='dark'?'Cambiar a tema claro':'Cambiar a tema oscuro');
+  const lbl=t==='dark'?tr('Cambiar a tema claro','Switch to light theme'):tr('Cambiar a tema oscuro','Switch to dark theme');
+  b.setAttribute('aria-label',lbl); b.dataset.tip=lbl;
   if(save){try{localStorage.setItem('mastil-theme',t)}catch(e){}}
 }
 $('theme').onclick=()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark',true);
-applyTheme(document.documentElement.dataset.theme||'light',false);
+
+function applyLang(save){
+  document.documentElement.lang=lang;
+  document.querySelectorAll('[data-i]').forEach(e=>{e.textContent=D[e.dataset.i][lang==='en'?1:0]});
+  document.querySelectorAll('[data-a]').forEach(e=>e.setAttribute('aria-label',D[e.dataset.a][lang==='en'?1:0]));
+  const lb=$('lang'); lb.textContent=lang==='en'?'ES':'EN';
+  lb.setAttribute('aria-label',lang==='en'?'Cambiar a español':'Switch to English'); lb.dataset.tip=lang==='en'?'Español':'English';
+  document.querySelectorAll('[data-t]').forEach(e=>{const s=D[e.dataset.t][lang==='en'?1:0]; e.dataset.tip=s; e.setAttribute('aria-label',s)});
+  const md=document.querySelector('meta[name="description"]');
+  if(md) md.setAttribute('content',lang==='en'?'Tap notes on the guitar fretboard and see the note, interval or chord, with sound and inversions.':'Toca notas en el mástil de la guitarra y ve la nota, el intervalo o el acorde, con sonido e inversiones.');
+  cells.forEach(c=>c.el.setAttribute('aria-label',cellLabel(c.s,c.f)));
+  applyTheme(document.documentElement.dataset.theme||'light',false);
+  if(dlg.open) buildDlgRender();
+  if(save){try{localStorage.setItem('mastil-lang',lang)}catch(e){}}
+  update();
+}
+$('lang').onclick=()=>{lang=lang==='en'?'es':'en';applyLang(true)};
 
 /* ---------- control ---------- */
 function update(){
   const notes=getNotes(), cands=notes.length>=3?detect(notes):[];
   if(pinned){const i=cands.findIndex(x=>x.root===pinned.root&&x.ti===pinned.ti);
     if(i<0) pinned=null; else if(i>0) cands.unshift(...cands.splice(i,1))}
-  const chord=cands[0]||null;
+  const chord=cands[0]||null; curChord=chord;
   renderBoard(chord); renderReadout(notes,cands); renderInv(chord,notes);
 }
 $('strum').onclick=()=>strum();
@@ -624,7 +719,7 @@ $('autostrum').onclick=e=>{autoStrum=!autoStrum;e.currentTarget.setAttribute('ar
 
 build();
 sel=[null,3,2,0,1,0]; // ejemplo: Do mayor abierto
-update();
+applyLang(false); // pinta textos fijos y llama a update()
 </script>
 
 <script>

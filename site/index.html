@@ -453,34 +453,35 @@ function renderBoard(chord){
 
 /* ---------- lectura ---------- */
 function chip(role,label,text){return `<span class="chip"><i style="--c:var(--${role})">${label}</i>${text}</span>`}
+const bigB=txt=>`<button class="bigbtn" id="chordbtn" data-tip="${tr('Elegir un acorde','Pick a chord')}">${txt}</button>`;
 function renderReadout(notes,cands){
   const el=$('readout'); let h='';
   if(!notes.length){
     h=`<div class="eyebrow">${tr('Mástil vacío','Empty fretboard')}</div><div class="big sm">${tr('Toca una nota','Tap a note')}</div><div class="sub">${tr('Con una nota ves su nombre, con dos el intervalo y con tres o más el acorde.','One note shows its name, two show the interval, three or more show the chord.')}</div>`;
   }else if(notes.length===1){
     const n=notes[0], pc=n.midi%12, nm=NEUTRAL[pc];
-    h=`<div class="eyebrow">${tr('Nota','Note')}</div><div class="big">${fmt(nm)}</div><div class="sub">${altFmt(nm)} · ${nm}${oct(n.midi)} · ${hz(n.midi).toFixed(1)} Hz · ${tr('cuerda','string')} ${6-n.s}, ${tr('traste','fret')} ${n.f}</div>`;
+    h=`<div class="eyebrow">${tr('Nota','Note')}</div><div class="big">${bigB(fmt(nm))}</div><div class="sub">${altFmt(nm)} · ${nm}${oct(n.midi)} · ${hz(n.midi).toFixed(1)} Hz · ${tr('cuerda','string')} ${6-n.s}, ${tr('traste','fret')} ${n.f}</div>`;
   }else if(notes.length===2){
     const [a,b]=notes, d=b.midi-a.midi, an=NEUTRAL[a.midi%12], bn=NEUTRAL[b.midi%12];
-    h=`<div class="eyebrow">${tr('Intervalo','Interval')}</div><div class="big">${intName(d)}</div><div class="sub">${fmt(an)}${oct(a.midi)} → ${fmt(bn)}${oct(b.midi)} · ${d} ${d===1?tr('semitono','semitone'):tr('semitonos','semitones')}</div>
+    h=`<div class="eyebrow">${tr('Intervalo','Interval')}</div><div class="big">${bigB(intName(d))}</div><div class="sub">${fmt(an)}${oct(a.midi)} → ${fmt(bn)}${oct(b.midi)} · ${d} ${d===1?tr('semitono','semitone'):tr('semitonos','semitones')}</div>
        <div class="chips">${chip('neutral','•',fmt(an)+oct(a.midi))}${chip('neutral','•',fmt(bn)+oct(b.midi))}</div>`;
   }else if(cands.length){
     const c=cands[0], bassPc=notes[0].midi%12, bt=c.tones.find(t=>t.pc===bassPc), bi=c.tones.indexOf(bt);
     const chips=notes.map(n=>{const t=c.tones.find(t=>t.pc===n.midi%12);return chip(t.role,t.label,fmt(t.name)+oct(n.midi))}).join('');
     const alts=cands.slice(1,5).map(x=>`<b>${symOf(x,bassPc)}</b>`).join(' · ');
-    h=`<div class="rhead"><div><div class="eyebrow">${tr('Acorde','Chord')}${bi>0?' · '+invNames()[bi].toLowerCase():''}</div><div class="big"><button class="bigbtn" id="chordbtn" data-tip="${tr('Elegir otro acorde','Choose another chord')}">${symOf(c,bassPc)}</button></div></div></div>
+    h=`<div class="rhead"><div><div class="eyebrow">${tr('Acorde','Chord')}${bi>0?' · '+invNames()[bi].toLowerCase():''}</div><div class="big">${bigB(symOf(c,bassPc))}</div></div></div>
        <div class="sub">${fmt(c.rootName)} ${descT(c.t)}${bi>0?tr(' · bajo en ',' · bass on ')+fmt(bt.name):''}</div>
        <div class="chips">${chips}</div>${alts?`<div class="alt">${tr('También se lee: ','Also reads as: ')}${alts}</div>`:''}`;
   }else{
     // 3+ cuerdas pero solo 1 o 2 nombres de nota distintos: no es un acorde, se lee como nota o intervalo
     const b=notes[0].midi%12, pcs=[...new Set(notes.map(n=>n.midi%12))];
     const chips=notes.map(n=>chip('neutral','•',fmt(NEUTRAL[n.midi%12])+oct(n.midi))).join('');
-    if(pcs.length===1) h=`<div class="eyebrow">${tr('Nota repetida','Repeated note')}</div><div class="big">${fmt(NEUTRAL[b])}</div><div class="sub">${notes.length} ${tr('cuerdas con la misma nota, en distintas octavas.','strings with the same note, in different octaves.')}</div><div class="chips">${chips}</div>`;
+    if(pcs.length===1) h=`<div class="eyebrow">${tr('Nota repetida','Repeated note')}</div><div class="big">${bigB(fmt(NEUTRAL[b]))}</div><div class="sub">${notes.length} ${tr('cuerdas con la misma nota, en distintas octavas.','strings with the same note, in different octaves.')}</div><div class="chips">${chips}</div>`;
     else{const d=mod(pcs.find(p=>p!==b)-b,12);
-      h=`<div class="eyebrow">${tr('Intervalo','Interval')}</div><div class="big">${intName(d)}</div><div class="sub">${tr('Solo '+pcs.length+' notas distintas ('+pcs.map(p=>fmt(NEUTRAL[p])).join(' y ')+'), así que no forman un acorde.','Only '+pcs.length+' different notes ('+pcs.map(p=>fmt(NEUTRAL[p])).join(' and ')+'), so they do not form a chord.')}</div><div class="chips">${chips}</div>`}
+      h=`<div class="eyebrow">${tr('Intervalo','Interval')}</div><div class="big">${bigB(intName(d))}</div><div class="sub">${tr('Solo '+pcs.length+' notas distintas ('+pcs.map(p=>fmt(NEUTRAL[p])).join(' y ')+'), así que no forman un acorde.','Only '+pcs.length+' different notes ('+pcs.map(p=>fmt(NEUTRAL[p])).join(' and ')+'), so they do not form a chord.')}</div><div class="chips">${chips}</div>`}
   }
   el.innerHTML=h;
-  if(!(notes.length>=3&&cands.length)){
+  if(!notes.length){
     el.insertAdjacentHTML('beforeend',`<div><button class="linkbtn" id="pickbtn">${tr('Elegir un acorde','Pick a chord')} ▾</button></div>`);
     $('pickbtn').onclick=()=>openBuilder(null);
   }

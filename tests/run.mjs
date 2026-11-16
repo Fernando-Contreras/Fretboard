@@ -87,7 +87,7 @@ for (let root = 0; root < 12; root++) TPL.forEach((t, ti) => {
   });
 });
 
-// 3) lo que arma "Crear acorde": cada acorde, tras aplicarse, se lee como ese mismo acorde y no queda vacío
+// 3) lo que arma "Seleccionar acorde": cada acorde, tras aplicarse, se lee como ese mismo acorde y no queda vacío
 let noStart = [];
 for (let root = 0; root < 12; root++) TPL.forEach((t, ti) => {
   const c = makeChord(root, ti), st = pickStart(c);

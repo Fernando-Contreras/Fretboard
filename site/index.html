@@ -193,7 +193,6 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
     <div class="hintline" id="hint" data-i="hint">Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.</div>
     <div class="sheet" id="sheet" hidden></div>
     <div class="scroller"><div class="board v" id="board"></div></div>
-    <div class="row" id="invrow" hidden><button class="btn" id="invbtn" aria-expanded="false">Inversiones ▾</button></div>
   </section>
 
   <section class="inv" id="inv" hidden></section>
@@ -262,7 +261,7 @@ const intName=d=>{
 
 let sel=[null,null,null,null,null,null];
 let notation='let', showAll=false, autoStrum=false, orient=innerWidth<720?'v':'h';
-let curChord=null, sheetOpen=false, invOpen=false, invIdx=0, invMore=false, lastKey='', voiceList=[], pinned=null;
+let curChord=null, sheetOpen=false, invOpen=true, invIdx=0, invMore=false, lastKey='', voiceList=[], pinned=null;
 
 const $=id=>document.getElementById(id);
 const fmt=n=>notation==='sol'?(SOL[n[0]]+n.slice(1)):n;
@@ -486,11 +485,7 @@ function renderReadout(notes,cands){
     $('pickbtn').onclick=()=>openBuilder(null);
   }
   const cb=$('chordbtn'); if(cb) cb.onclick=()=>openBuilder(cands[0]);
-  const ib=$('invbtn'), has=notes.length>=3&&cands.length>0;
-  $('invrow').hidden=!has;
-  ib.setAttribute('aria-expanded',invOpen); ib.textContent=tr('Inversiones ','Inversions ')+(invOpen?'▴':'▾');
 }
-$('invbtn').onclick=()=>{invOpen=!invOpen;update()};
 
 /* ---------- inversiones ---------- */
 /* ¿Se puede tocar con una mano? Reglas:

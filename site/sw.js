@@ -1,5 +1,5 @@
 ﻿// MÃ¡stil: guarda la app para que abra sin internet. Sirve lo guardado y actualiza en segundo plano.
-const CACHE = 'mastil-88fb4eab48';
+const CACHE = 'mastil-360ac625aa';
 const SHELL = [
   "./",
   "fonts/bricolage-grotesque-latin-600-normal.woff2",

@@ -11,6 +11,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="fonts/fonts.css">
+<script>(function(){var t=null;try{t=localStorage.getItem('mastil-theme')}catch(e){}if(t!=='light'&&t!=='dark')t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';document.documentElement.dataset.theme=t})();</script>
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <style>
 /* Layout: lectura fija arriba (nota / intervalo / acorde), mástil en medio, inversiones debajo. Madera oscura sobre fondo neutro verdoso. */
@@ -106,13 +107,36 @@ button{font:inherit;color:inherit}
 .vmeta{font:500 .68rem var(--font-m);color:var(--muted);text-align:center}
 .vcard:hover{border-color:var(--accent)}
 @media (prefers-reduced-motion:no-preference){.btn,.vcard,.tab{transition:border-color .15s}}
+
+/* tema + creador de acordes */
+.hright{display:flex;align-items:center;gap:.6rem}
+.btn.icon{min-height:2.1rem;min-width:2.1rem;padding:.2rem .5rem;font-size:1.05rem;line-height:1;border-radius:999px}
+dialog.builder{width:min(34rem,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);overflow:hidden}
+dialog.builder[open]{display:flex;flex-direction:column}
+dialog.builder::backdrop{background:rgba(0,0,0,.55)}
+.bhead,.bfoot{display:flex;justify-content:space-between;align-items:center;gap:.6rem;padding:.8rem 1rem}
+.bhead{border-bottom:1px solid var(--line)}.bfoot{border-top:1px solid var(--line);flex-wrap:wrap}
+.bhead h2{margin:0;font:800 1.15rem var(--font-d)}
+.bbody{padding:.8rem 1rem;overflow-y:auto;display:grid;gap:.8rem}
+.bbody h3{margin:0 0 .4rem;font:600 .68rem var(--font-m);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.rootgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:.4rem}
+.typegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(8.2rem,1fr));gap:.4rem}
+.opt{font:600 .9rem var(--font-b);padding:.4rem .3rem;min-height:2.5rem;border-radius:8px;border:1px solid var(--line);background:transparent;cursor:pointer;text-align:center}
+.opt small{display:block;font:500 .64rem var(--font-m);color:var(--muted);overflow-wrap:anywhere}
+.opt[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.opt:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bprev{font-size:.85rem;color:var(--muted)}.bprev b{font:800 1.3rem var(--font-d);color:var(--ink);display:block}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
     <h1>Mástil</h1>
-    <span class="tag">6 CUERDAS · AFINACIÓN E A D G B E · 15 TRASTES</span>
+    <div class="hright">
+      <span class="tag">6 CUERDAS · AFINACIÓN E A D G B E · 15 TRASTES</span>
+      <button class="btn icon" id="theme" aria-label="Cambiar entre tema claro y oscuro" title="Tema claro / oscuro">☾</button>
+    </div>
   </header>
 
   <section class="readout" id="readout" aria-live="polite"></section>
@@ -124,6 +148,7 @@ button{font:inherit;color:inherit}
       <button class="btn primary" id="strum">Tocar</button>
       <button class="btn" id="clear">Limpiar</button>
       <button class="btn" id="rotate">Girar mástil</button>
+      <button class="btn" id="build">Crear acorde…</button>
     </div>
     <div class="row">
       <span class="seg" role="group" aria-label="Notación">
@@ -136,6 +161,18 @@ button{font:inherit;color:inherit}
 
   <section class="inv" id="inv" hidden></section>
 </div>
+
+<dialog class="builder" id="builder" aria-labelledby="btitle">
+  <div class="bhead"><h2 id="btitle">Crear acorde</h2><button class="btn icon" id="bx" aria-label="Cancelar">✕</button></div>
+  <div class="bbody">
+    <div><h3>Nota raíz</h3><div class="rootgrid" id="broots"></div></div>
+    <div><h3>Tipo de acorde</h3><div class="typegrid" id="btypes"></div></div>
+  </div>
+  <div class="bfoot">
+    <div class="bprev" id="bprev" aria-live="polite"></div>
+    <button class="btn primary" id="bok">Listo</button>
+  </div>
+</dialog>
 
 <script>
 const OPEN=[40,45,50,55,59,64], STRN=['E','A','D','G','B','e'], FRETS=15;
@@ -384,6 +421,40 @@ function renderReadout(notes,cands){
 }
 
 /* ---------- inversiones ---------- */
+/* ¿Se puede tocar con una mano? Reglas:
+   - los trastes con dedo caben en 4 trastes seguidos (diferencia máxima 3);
+   - un dedo puede cubrir varias cuerdas solo en el mismo traste (cejilla) y si todas las cuerdas
+     entre medio están en ese traste o más arriba (si no, la cejilla las apagaría o cambiaría su nota);
+   - máximo 4 dedos; a mayor traste, dedo más a la derecha (índice a meñique);
+   - dos dedos distintos no se separan más de (dedos de distancia + 1) trastes. */
+function playable(s,fr){
+  const notes=[]; fr.forEach((f,k)=>{if(f>0) notes.push({k,f})});
+  if(!notes.length) return true;
+  const frets=notes.map(n=>n.f);
+  if(Math.max(...frets)-Math.min(...frets)>3) return false;
+  const groups=[];
+  for(const g of [...new Set(frets)].sort((a,b)=>a-b)){
+    let cur=null;
+    for(const n of notes.filter(n=>n.f===g)){
+      let join=!!cur;
+      if(join) for(let t=cur.last+1;t<n.k;t++) if(fr[t]<g){join=false;break}
+      if(join) cur.last=n.k; else {cur={f:g,last:n.k};groups.push(cur)}
+    }
+  }
+  const k=groups.length; if(k>4) return false;
+  const as=[];
+  function rec(i,prev){
+    if(i===k) return true;
+    for(let f=prev+1;f<=4-(k-1-i);f++){
+      let ok=true;
+      for(let j=0;j<i;j++) if(groups[i].f-groups[j].f>f-as[j]+1){ok=false;break}
+      if(!ok) continue;
+      as[i]=f; if(rec(i+1,f)) return true;
+    }
+    return false;
+  }
+  return rec(0,0);
+}
 function findVoicings(pcs,bass,n){
   // n = cuerdas seleccionadas: cada forma usa exactamente n cuerdas seguidas y repite notas si hace falta
   const res=[];
@@ -393,8 +464,8 @@ function findVoicings(pcs,bass,n){
       if(rem.size>n-i) return;
       if(i===n){
         const fretted=fr.filter(f=>f>0), mx=fretted.length?Math.max(...fretted):0, mn=fretted.length?Math.min(...fretted):0;
-        if(fretted.length&&mx-mn>4) return;
         if(fr.includes(0)&&mx>5) return;
+        if(!playable(s,fr)) return;
         res.push({s,frets:[...fr],min:mn});
         return;
       }
@@ -458,6 +529,58 @@ function applyVoicing(v,c){
   pinned={root:c.root,ti:c.ti}; // sigue leyéndose como el mismo acorde, ahora invertido
   update(); strum();
 }
+
+/* ---------- creador de acordes ---------- */
+function makeChord(root,ti){
+  const t=TPL[ti], rootName=(t.minor?MIN_ROOT:MAJ_ROOT)[root];
+  const tones=t.tones.map(x=>({...x,pc:(root+x.semis)%12,name:spell(rootName,x.semis,x.step)}));
+  return {root,rootName,t,ti,tones,bassIsRoot:true};
+}
+/* Primera forma tocable: fundamental si existe; si no, la primera inversión que sí se pueda; y si hace falta, con cuerdas extra. */
+function pickStart(c){
+  const pcs=c.tones.map(t=>t.pc);
+  for(let n=c.tones.length;n<=6;n++)
+    for(let b=0;b<c.tones.length;b++){
+      const list=findVoicings(pcs,c.tones[b].pc,n);
+      if(list.length) return {v:list[0],n,bassIdx:b};
+    }
+  return null;
+}
+let bRoot=0,bTi=0;
+const ROOT_LAB=['C','C♯/D♭','D','D♯/E♭','E','F','F♯/G♭','G','G♯/A♭','A','A♯/B♭','B'];
+function buildDlgRender(){
+  $('broots').innerHTML=ROOT_LAB.map((l,i)=>`<button class="opt" data-r="${i}" aria-pressed="${i===bRoot}">${notation==='sol'?l.replace(/[A-G]/g,m=>SOL[m]):l}</button>`).join('');
+  $('btypes').innerHTML=TPL.map((t,i)=>`<button class="opt" data-t="${i}" aria-pressed="${i===bTi}">${t.sym||'Mayor'}<small>${t.es}</small></button>`).join('');
+  $('broots').querySelectorAll('.opt').forEach(b=>b.onclick=()=>{bRoot=+b.dataset.r;buildDlgRender()});
+  $('btypes').querySelectorAll('.opt').forEach(b=>b.onclick=()=>{bTi=+b.dataset.t;buildDlgRender()});
+  const c=makeChord(bRoot,bTi), st=pickStart(c);
+  $('bprev').innerHTML=`<b>${fmt(c.rootName)}${c.t.sym}</b>${c.tones.map(t=>fmt(t.name)).join(' · ')}${st?'':'<br>No hay forma tocable de este acorde en los primeros 15 trastes.'}`;
+  $('bok').disabled=!st;
+}
+function applyBuilt(){
+  const c=makeChord(bRoot,bTi), st=pickStart(c); if(!st) return;
+  sel=[null,null,null,null,null,null];
+  st.v.frets.forEach((f,k)=>{sel[st.v.s+k]=f});
+  pinned={root:c.root,ti:c.ti}; invOpen=true; lastKey='';
+  update(); strum();
+}
+const dlg=$('builder');
+$('build').onclick=()=>{buildDlgRender();dlg.showModal()};
+$('bx').onclick=()=>dlg.close('cancel');
+$('bok').onclick=()=>dlg.close('ok');
+dlg.addEventListener('click',e=>{if(e.target===dlg) dlg.close('cancel')});
+dlg.addEventListener('close',()=>{if(dlg.returnValue==='ok') applyBuilt(); dlg.returnValue=''});
+
+/* ---------- tema ---------- */
+function applyTheme(t,save){
+  document.documentElement.dataset.theme=t;
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute('content',t==='dark'?'#0d1211':'#e8ece9'));
+  const b=$('theme'); b.textContent=t==='dark'?'☀':'☾';
+  b.setAttribute('aria-label',t==='dark'?'Cambiar a tema claro':'Cambiar a tema oscuro');
+  if(save){try{localStorage.setItem('mastil-theme',t)}catch(e){}}
+}
+$('theme').onclick=()=>applyTheme(document.documentElement.dataset.theme==='dark'?'light':'dark',true);
+applyTheme(document.documentElement.dataset.theme||'light',false);
 
 /* ---------- control ---------- */
 function update(){

@@ -1,0 +1,116 @@
+// Pruebas de Mástil. Uso: node tests/run.mjs
+// Carga la lógica de site/index.html (todo lo anterior a "build();") en un sandbox sin DOM real.
+import fs from 'node:fs';
+import vm from 'node:vm';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const html = fs.readFileSync(path.join(here, '..', 'site', 'index.html'), 'utf8');
+const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+const main = scripts.find(s => s.includes('const OPEN='));
+const code = main.slice(0, main.indexOf('\nbuild();'));
+
+// DOM falso: cualquier propiedad o método existe y devuelve otro DOM falso.
+const fake = () => new Proxy(function () {}, {
+  get: (_, k) => (k === Symbol.toPrimitive ? () => '' : k === 'length' ? 0 : k === 'style' ? {} : fake()),
+  set: () => true, apply: () => fake(),
+});
+const sandbox = { document: { getElementById: () => fake(), documentElement: { dataset: {} }, querySelectorAll: () => [], createElement: () => fake() }, innerWidth: 1000, window: {}, console };
+vm.createContext(sandbox);
+const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT})', sandbox);
+const { findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN } = api;
+
+let fails = 0, checks = 0;
+const bad = (msg) => { fails++; if (fails <= 30) console.log('FALLA:', msg); };
+const ok = (c, msg) => { checks++; if (!c) bad(msg); };
+
+// ---- validador independiente (fuerza bruta de asignación de dedos) ----
+function brutePlayable(s, fr) {
+  const notes = fr.map((f, k) => ({ k, f })).filter(n => n.f > 0);
+  if (!notes.length) return true;
+  const fs_ = notes.map(n => n.f);
+  if (Math.max(...fs_) - Math.min(...fs_) > 3) return false;
+  const n = notes.length;
+  const finger = new Array(n).fill(1);
+  const rec = (i) => {
+    if (i === n) return valid();
+    for (let f = 1; f <= 4; f++) { finger[i] = f; if (rec(i + 1)) return true; }
+    return false;
+  };
+  const valid = () => {
+    for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) {
+      const A = notes[a], B = notes[b];
+      if (finger[a] === finger[b]) {
+        if (A.f !== B.f) return false;
+        for (let t = Math.min(A.k, B.k) + 1; t < Math.max(A.k, B.k); t++) if (fr[t] < A.f) return false; // cejilla
+      } else {
+        const fd = Math.abs(finger[a] - finger[b]);
+        if (A.f !== B.f && (A.f < B.f) !== (finger[a] < finger[b])) return false; // orden índice→meñique
+        if (Math.abs(A.f - B.f) > fd + 1) return false;
+      }
+    }
+    return true;
+  };
+  return rec(0);
+}
+
+// 1) playable() coincide con la fuerza bruta en una muestra enorme de formas aleatorias y las de cada acorde
+let seed = 12345; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+let agree = 0;
+for (let i = 0; i < 60000; i++) {
+  const n = 3 + Math.floor(rnd() * 4), base = Math.floor(rnd() * 12);
+  const fr = Array.from({ length: n }, () => rnd() < 0.2 ? 0 : base + Math.floor(rnd() * 5));
+  const a = playable(0, fr), b = brutePlayable(0, fr);
+  ok(a === b, `playable difiere de fuerza bruta en [${fr}] (${a} vs ${b})`); agree++;
+}
+
+// 2) todas las formas de todos los acordes y todas las inversiones
+let totalV = 0, emptyInv = [];
+for (let root = 0; root < 12; root++) TPL.forEach((t, ti) => {
+  const c = makeChord(root, ti), pcs = c.tones.map(x => x.pc);
+  for (let n = c.tones.length; n <= 6; n++) c.tones.forEach((bt, bi) => {
+    const list = findVoicings(pcs, bt.pc, n);
+    if (n === c.tones.length && !list.length) emptyInv.push(`${c.rootName}${t.sym} inv${bi} (${n} cuerdas)`);
+    for (const v of list) {
+      totalV++;
+      const midis = v.frets.map((f, k) => OPEN[v.s + k] + f);
+      const pset = new Set(midis.map(m => m % 12));
+      ok(v.frets.length === n, `${c.rootName}${t.sym}: usa ${v.frets.length} cuerdas y no ${n}`);
+      ok(v.s >= 0 && v.s + n <= 6, `${c.rootName}${t.sym}: se sale de las 6 cuerdas`);
+      ok(v.frets.every(f => f >= 0 && f <= 15), `${c.rootName}${t.sym}: traste fuera de 0-15 [${v.frets}]`);
+      ok(midis[0] % 12 === bt.pc, `${c.rootName}${t.sym}: el bajo no es ${bt.name} [${v.frets}]`);
+      ok([...pset].every(p => pcs.includes(p)) && pcs.every(p => pset.has(p)), `${c.rootName}${t.sym}: notas incorrectas [${v.s}:${v.frets}]`);
+      ok(new Set(midis).size === midis.length, `${c.rootName}${t.sym}: nota repetida exacta`);
+      ok(brutePlayable(v.s, v.frets), `${c.rootName}${t.sym}: IMPOSIBLE de tocar s${v.s} [${v.frets}]`);
+    }
+  });
+});
+
+// 3) lo que arma "Crear acorde": cada acorde, tras aplicarse, se lee como ese mismo acorde y no queda vacío
+let noStart = [];
+for (let root = 0; root < 12; root++) TPL.forEach((t, ti) => {
+  const c = makeChord(root, ti), st = pickStart(c);
+  if (!st) { noStart.push(`${c.rootName}${t.sym}`); return; }
+  const notes = st.v.frets.map((f, k) => ({ s: st.v.s + k, f, midi: OPEN[st.v.s + k] + f })).sort((a, b) => a.midi - b.midi);
+  const cands = detect(notes);
+  ok(cands.some(x => x.root === root && x.ti === ti), `${c.rootName}${t.sym}: la forma inicial no se lee como el acorde pedido`);
+});
+
+// 4) regla vieja: 3+ notas distintas siempre reciben nombre de acorde
+let combos = 0;
+for (let mask = 1; mask < 4096; mask++) {
+  const pcs = []; for (let i = 0; i < 12; i++) if (mask >> i & 1) pcs.push(i);
+  if (pcs.length < 3 || pcs.length > 6) continue;
+  const notes = pcs.map((p, i) => ({ midi: 40 + p + (i ? 12 : 0), s: 0, f: 0 })).sort((a, b) => a.midi - b.midi);
+  ok(detect(notes).length > 0, `sin nombre para pcs ${pcs}`); combos++;
+}
+
+console.log(`comparaciones con fuerza bruta: ${agree}`);
+console.log(`formas verificadas: ${totalV}`);
+console.log(`combinaciones de 3-6 notas con nombre: ${combos}`);
+console.log(`inversiones SIN ninguna forma tocable con tantas cuerdas como notas: ${emptyInv.length}`);
+if (emptyInv.length) console.log('  ej.:', emptyInv.slice(0, 12).join(' | '));
+console.log(`acordes del creador sin forma inicial: ${noStart.length}`, noStart.length ? noStart.slice(0, 12).join(' | ') : '');
+console.log(`${checks} chequeos, ${fails} fallas`);
+process.exit(fails ? 1 : 0);

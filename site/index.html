@@ -108,6 +108,15 @@ button{font:inherit;color:inherit}
 .vcard:hover{border-color:var(--accent)}
 @media (prefers-reduced-motion:no-preference){.btn,.vcard,.tab{transition:border-color .15s}}
 
+/* controles: dentro del cuadro de lectura en pantallas anchas, debajo en angostas */
+.rd{display:grid;gap:.45rem;min-width:0}
+.ctl{display:grid;gap:.5rem;align-content:start}
+@media (min-width:860px){
+  .readout{grid-template-columns:minmax(0,1fr) auto;column-gap:1.2rem;align-items:start}
+  .readout .ctl{max-width:31rem;justify-items:end}
+  .readout .ctl .row{justify-content:flex-end}
+}
+
 /* tema + creador de acordes */
 .hright{display:flex;align-items:center;gap:.6rem}
 .btn.icon{min-height:2.1rem;min-width:2.1rem;padding:.2rem .5rem;font-size:1.05rem;line-height:1;border-radius:999px}
@@ -139,23 +148,27 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
     </div>
   </header>
 
-  <section class="readout" id="readout" aria-live="polite"></section>
+  <section class="readout" id="top">
+    <div class="rd" id="readout" aria-live="polite"></div>
+    <div class="ctl" id="ctl">
+      <div class="row">
+        <button class="btn primary" id="strum">Tocar</button>
+        <button class="btn" id="clear">Limpiar</button>
+        <button class="btn" id="rotate">Girar mástil</button>
+        <button class="btn" id="build">Seleccionar acorde…</button>
+      </div>
+      <div class="row">
+        <span class="seg" role="group" aria-label="Notación">
+          <button class="btn" id="n-let" aria-pressed="true">C D E</button><button class="btn" id="n-sol" aria-pressed="false">Do Re Mi</button>
+        </span>
+        <button class="btn" id="showall" aria-pressed="false">Ver todas las notas</button>
+        <button class="btn" id="autostrum" aria-pressed="false">Sonar acorde al agregar</button>
+      </div>
+    </div>
+  </section>
 
-  <section class="stage">
-    <div class="hintline">Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.</div>
-    <div class="row">
-      <button class="btn primary" id="strum">Tocar</button>
-      <button class="btn" id="clear">Limpiar</button>
-      <button class="btn" id="rotate">Girar mástil</button>
-      <button class="btn" id="build">Seleccionar acorde…</button>
-    </div>
-    <div class="row">
-      <span class="seg" role="group" aria-label="Notación">
-        <button class="btn" id="n-let" aria-pressed="true">C D E</button><button class="btn" id="n-sol" aria-pressed="false">Do Re Mi</button>
-      </span>
-      <button class="btn" id="showall" aria-pressed="false">Ver todas las notas</button>
-      <button class="btn" id="autostrum" aria-pressed="false">Sonar acorde al agregar</button>
-    </div>
+  <section class="stage" id="stage">
+    <div class="hintline" id="hint">Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.</div>
     <div class="scroller"><div class="board v" id="board"></div></div>
     <div class="row" id="invrow" hidden><button class="btn" id="invbtn" aria-expanded="false">Inversiones ▾</button></div>
   </section>
@@ -573,6 +586,14 @@ $('bx').onclick=()=>dlg.close('cancel');
 $('bok').onclick=()=>dlg.close('ok');
 dlg.addEventListener('click',e=>{if(e.target===dlg) dlg.close('cancel')});
 dlg.addEventListener('close',()=>{if(dlg.returnValue==='ok') applyBuilt(); dlg.returnValue=''});
+
+/* ---------- ubicación de los controles ---------- */
+const wideMq=matchMedia('(min-width:860px)');
+function placeCtl(){
+  if(wideMq.matches) $('top').appendChild($('ctl'));
+  else $('stage').insertBefore($('ctl'),$('hint').nextSibling);
+}
+wideMq.addEventListener('change',placeCtl); placeCtl();
 
 /* ---------- tema ---------- */
 function applyTheme(t,save){

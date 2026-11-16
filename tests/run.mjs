@@ -16,7 +16,7 @@ const fake = () => new Proxy(function () {}, {
   get: (_, k) => (k === Symbol.toPrimitive ? () => '' : k === 'length' ? 0 : k === 'style' ? {} : fake()),
   set: () => true, apply: () => fake(),
 });
-const sandbox = { document: { getElementById: () => fake(), documentElement: { dataset: {} }, querySelectorAll: () => [], createElement: () => fake() }, innerWidth: 1000, window: {}, console };
+const sandbox = { document: { getElementById: () => fake(), documentElement: { dataset: {} }, querySelectorAll: () => [], createElement: () => fake() }, innerWidth: 1000, window: {}, console, matchMedia: () => ({ matches: true, addEventListener() {} }) };
 vm.createContext(sandbox);
 const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT})', sandbox);
 const { findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN } = api;

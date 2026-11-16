@@ -1,0 +1,42 @@
+FICHA DE GOOGLE PLAY (español)
+
+Nombre de la app (27/30):
+Mástil: acordes en guitarra
+
+Descripción breve (75/80):
+Toca notas en el mástil y ve la nota, el intervalo o el acorde. Con sonido.
+
+Descripción completa (1002/4000):
+Mástil es un mástil de guitarra interactivo para entender y encontrar acordes.
+
+Toca cualquier cuerda en cualquier traste y la app te lo explica al momento:
+• Una nota: te dice su nombre (letras o Do Re Mi), su octava y su frecuencia.
+• Dos notas: te dice el intervalo entre ellas.
+• Tres o más notas: te dice el acorde, con el papel de cada nota (fundamental, tercera, quinta, séptima).
+• Inversiones: para cada acorde ves todas sus formas tocables, inversión por inversión, con diagramas. Toca una y se pone en el mástil.
+
+Todo suena: oyes cada nota que tocas y puedes rasguear el acorde completo.
+
+Pensado para guitarristas que quieren saber qué están tocando: estudiantes, maestros y compositores. Funciona sin internet, no pide cuenta y no recopila ningún dato.
+
+• Mástil de 6 cuerdas y 15 trastes, afinación estándar
+• Nombres de acordes por intervalos, aunque no sean comunes
+• Notación en letras (C D E) o en solfeo (Do Re Mi)
+• Modo claro y modo oscuro
+• Sin anuncios, sin cuentas, sin rastreo
+
+Categoría: Música y audio
+Correo de contacto de la ficha: [TU CORREO] (es público)
+URL de la política de privacidad: https://[TU-DOMINIO]/privacy.html
+
+RESPUESTAS PARA LOS FORMULARIOS (revísalas tú antes de enviar)
+- Seguridad de los datos: la app no recopila ni comparte datos.
+- Anuncios: no contiene.
+- Compras dentro de la app: no, en esta versión.
+- Público objetivo: no dirigida a niños.
+- Cuestionario de clasificación de contenido: sin violencia, sin contenido sexual, sin lenguaje fuerte, sin juegos de azar.
+
+IMÁGENES
+- Ícono: icon-512.png
+- Gráfico de función: feature-graphic-1024x500.png
+- Capturas de teléfono: screenshots/phone-1.png a phone-4.png (1080x1920)

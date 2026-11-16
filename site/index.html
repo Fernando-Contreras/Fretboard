@@ -675,7 +675,7 @@ function renderSheet(notes,chord){
     const x=cx+(it.right?9:0), col=it.role?`var(--${it.role})`:'var(--neutral)';
     g+=`<ellipse cx="${x}" cy="${it.y}" rx="6.6" ry="4.9" transform="rotate(-18 ${x} ${it.y})" fill="${col}" stroke="var(--ink)" stroke-width="1.1"/>`;
     if(it.acc) g+=`<text x="${cx-15-it.accCol*10}" y="${it.y+4}" text-anchor="middle" font-size="12" fill="currentColor" font-family="var(--font-b)">${it.acc}</text>`;
-    g+=`<text x="${cx+26}" y="${it.y+3}" font-size="8.5" font-family="var(--font-m)" fill="var(--muted)">${fmt(it.name)}${it.wo-1}</text>`;
+    if(showAll) g+=`<text x="${cx+26}" y="${it.y+3}" font-size="8.5" font-family="var(--font-m)" fill="var(--muted)">${fmt(it.name)}${it.wo-1}</text>`;
   }
   const names=items.map(i=>fmt(i.name)+(i.wo-1)).join(', ');
   box.innerHTML=`<div class="eyebrow">${tr('Partitura','Sheet music')}</div>

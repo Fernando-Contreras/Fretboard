@@ -173,7 +173,7 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
   <header>
     <h1>Mástil</h1>
     <div class="hright">
-      <span class="tag" data-i="tag">6 CUERDAS · AFINACIÓN E A D G B E · 15 TRASTES</span>
+      <span class="tag" data-k="tag">6 CUERDAS · AFINACIÓN E A D G B E · 15 TRASTES</span>
       <button class="btn icon" id="lang" aria-label="Switch to English" data-tip="English">EN</button>
       <button class="btn icon" id="theme" aria-label="Cambiar entre tema claro y oscuro" data-tip="Tema claro / oscuro">☾</button>
     </div>
@@ -183,24 +183,24 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
     <div class="rd" id="readout" aria-live="polite"></div>
     <div class="ctl" id="ctl">
       <div class="row">
-        <button class="btn primary ib" id="strum" data-t="strum">▶</button>
-        <button class="btn ib" id="clear" data-t="clear">🧹</button>
-        <button class="btn ib" id="rotate" data-t="rotate">🔄</button>
-        <button class="btn ib" id="build" data-t="sheet" aria-pressed="false">🎼</button>
+        <button class="btn primary ib" id="strum" data-u="strum">▶</button>
+        <button class="btn ib" id="clear" data-u="clear">🧹</button>
+        <button class="btn ib" id="rotate" data-u="rotate">🔄</button>
+        <button class="btn ib" id="build" data-u="sheet" aria-pressed="false">🎼</button>
         <button class="btn ib" id="capo" aria-pressed="false">🗜️</button>
       </div>
       <div class="row">
         <span class="seg" role="group" aria-label="Notación" data-a="notation">
           <button class="btn" id="n-let" aria-pressed="true">C D E</button><button class="btn" id="n-sol" aria-pressed="false">Do Re Mi</button>
         </span>
-        <button class="btn ib" id="showall" aria-pressed="false" data-t="showall">👁</button>
-        <button class="btn ib" id="autostrum" aria-pressed="false" data-t="autostrum">🔊</button>
+        <button class="btn ib" id="showall" aria-pressed="false" data-u="showall">👁</button>
+        <button class="btn ib" id="autostrum" aria-pressed="false" data-u="autostrum">🔊</button>
       </div>
     </div>
   </section>
 
   <section class="stage" id="stage">
-    <div class="hintline" id="hint" data-i="hint">Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.</div>
+    <div class="hintline" id="hint" data-k="hint">Una nota por cuerda: tocar otro traste de la misma cuerda la reemplaza, tocarla de nuevo la quita.</div>
     <div class="sheet" id="sheet" hidden></div>
     <div class="scroller"><div class="board v" id="board"></div></div>
   </section>
@@ -209,14 +209,14 @@ dialog.builder::backdrop{background:rgba(0,0,0,.55)}
 </div>
 
 <dialog class="builder" id="builder" aria-labelledby="btitle">
-  <div class="bhead"><h2 id="btitle" data-i="build0">Seleccionar acorde</h2><button class="btn icon" id="bx" aria-label="Cancelar" data-a="cancel">✕</button></div>
+  <div class="bhead"><h2 id="btitle" data-k="build0">Seleccionar acorde</h2><button class="btn icon" id="bx" aria-label="Cancelar" data-a="cancel">✕</button></div>
   <div class="bbody">
-    <div><h3 data-i="hroot">Nota raíz</h3><div class="rootgrid" id="broots"></div></div>
-    <div><h3 data-i="htype">Tipo de acorde</h3><div class="typegrid" id="btypes"></div></div>
+    <div><h3 data-k="hroot">Nota raíz</h3><div class="rootgrid" id="broots"></div></div>
+    <div><h3 data-k="htype">Tipo de acorde</h3><div class="typegrid" id="btypes"></div></div>
   </div>
   <div class="bfoot">
     <div class="bprev" id="bprev" aria-live="polite"></div>
-    <button class="btn primary" id="bok" data-i="bok">Listo</button>
+    <button class="btn primary" id="bok" data-k="bok">Listo</button>
   </div>
 </dialog>
 
@@ -793,11 +793,11 @@ $('theme').onclick=()=>applyTheme(document.documentElement.dataset.theme==='dark
 
 function applyLang(save){
   document.documentElement.lang=lang;
-  document.querySelectorAll('[data-i]').forEach(e=>{e.textContent=D[e.dataset.i][lang==='en'?1:0]});
+  document.querySelectorAll('[data-k]').forEach(e=>{e.textContent=D[e.dataset.k][lang==='en'?1:0]});
   document.querySelectorAll('[data-a]').forEach(e=>e.setAttribute('aria-label',D[e.dataset.a][lang==='en'?1:0]));
   const lb=$('lang'); lb.textContent=lang==='en'?'ES':'EN';
   lb.setAttribute('aria-label',lang==='en'?'Cambiar a español':'Switch to English'); lb.dataset.tip=lang==='en'?'Español':'English';
-  document.querySelectorAll('[data-t]').forEach(e=>{const s=D[e.dataset.t][lang==='en'?1:0]; e.dataset.tip=s; e.setAttribute('aria-label',s)});
+  document.querySelectorAll('[data-u]').forEach(e=>{const s=D[e.dataset.u][lang==='en'?1:0]; e.dataset.tip=s; e.setAttribute('aria-label',s)});
   const md=document.querySelector('meta[name="description"]');
   if(md) md.setAttribute('content',lang==='en'?'Tap notes on the guitar fretboard and see the note, interval or chord, with sound and inversions.':'Toca notas en el mástil de la guitarra y ve la nota, el intervalo o el acorde, con sonido e inversiones.');
   cells.forEach(c=>c.el.setAttribute('aria-label',cellLabel(c.s,c.f)));

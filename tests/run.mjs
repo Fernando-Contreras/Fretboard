@@ -18,8 +18,8 @@ const fake = () => new Proxy(function () {}, {
 });
 const sandbox = { document: { getElementById: () => fake(), documentElement: { dataset: {} }, querySelectorAll: () => [], querySelector: () => null, createElement: () => fake(), body: fake(), addEventListener() {} }, innerWidth: 1000, window: {}, console, matchMedia: () => ({ matches: true, addEventListener() {} }) };
 vm.createContext(sandbox);
-const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT,setLang:l=>{lang=l},setCapoVar:n=>{capo=n},intName,symT,descT,invNames,tr,sheetModel})', sandbox);
-const { setCapoVar, findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN, setLang, intName, symT, descT, invNames, sheetModel } = api;
+const api = vm.runInContext(code + '\n({findVoicings,playable,detect,makeChord,pickStart,TPL,OPEN,spell,MAJ_ROOT,MIN_ROOT,setLang:l=>{lang=l},setCapoVar:n=>{capo=n},D,intName,symT,descT,invNames,tr,sheetModel})', sandbox);
+const { D, setCapoVar, findVoicings, playable, detect, makeChord, pickStart, TPL, OPEN, setLang, intName, symT, descT, invNames, sheetModel } = api;
 
 let fails = 0, checks = 0;
 const bad = (msg) => { fails++; if (fails <= 30) console.log('FALLA:', msg); };
@@ -119,6 +119,16 @@ for (let mask = 1; mask < 4096; mask++) {
   const notes = pcs.map((p, i) => ({ midi: 40 + p + (i ? 12 : 0), s: 0, f: 0 })).sort((a, b) => a.midi - b.midi);
   for (const c of detect(notes)) { ok(!ES.test(descT(c.t)), `descripción en español: ${descT(c.t)} (${pcs})`); ok(!/sin /.test(symT(c.t)), `símbolo en español: ${symT(c.t)}`); enNamed++; }
 }
+// 5c) traducción: todas las claves del HTML fijo existen en el diccionario (si falta una, applyLang se rompe y el inglés queda a medias),
+//     y ningún atributo de traducción choca con atributos que el JS genera para otras cosas (p. ej. las pestañas de inversiones)
+const staticHtml = html.slice(0, html.indexOf('<script>', html.indexOf('</style>')));
+for (const m of staticHtml.matchAll(/data-(k|a|u)="(\w+)"/g)) ok(!!D[m[2]], `falta en el diccionario: data-${m[1]}="${m[2]}"`);
+for (const [k, v] of Object.entries(D)) ok(Array.isArray(v) && v.length === 2 && v[0] && v[1], `traducción incompleta: ${k}`);
+const dynamic = [...main.matchAll(/data-([a-z]+)="\$\{/g)].map(m => m[1]);
+for (const a of dynamic) ok(!['k', 'a', 'u'].includes(a), `el JS genera data-${a}, que choca con las claves de traducción`);
+const sels = [...main.matchAll(/querySelectorAll\('\[data-(\w+)\]'\)/g)].map(m => m[1]);
+for (const s of sels) ok(!dynamic.includes(s), `querySelectorAll('[data-${s}]') también atrapa elementos generados por el JS`);
+
 setLang('es');
 ok(intName(7) === '5ª justa' && symT(TPL[24]) === '7(sin 5)', 'el español cambió');
 

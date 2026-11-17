@@ -478,11 +478,13 @@ function syncCapoBtn(){
 
 function renderBoard(chord){
   const map=chord?new Map(chord.tones.map(t=>[t.pc,t])):null;
+  // sin acorde (una nota, un intervalo…): se resaltan en otros trastes las mismas notas que están seleccionadas
+  const selPcs=chord?null:new Set(getNotes().map(n=>n.midi%12));
   for(const c of cells){
     const pc=(OPEN[c.s]+c.f)%12, on=sel[c.s]===c.f, t=map&&map.get(pc), dead=c.f<capo;
     let cls='dot';
     if(on) cls+=' on'+(c.f===capo?' ring':'');
-    else if(showAll&&!dead) cls+=t?' hint':' ghost';
+    else if(showAll&&!dead) cls+=(t||(selPcs&&selPcs.has(pc)))?' hint':' ghost';
     else cls+=' off';
     c.dot.className=cls;
     c.dot.style.setProperty('--c',t?`var(--${t.role})`:'var(--neutral)');

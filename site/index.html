@@ -538,13 +538,11 @@ function renderReadout(notes,cands){
      entre medio están en ese traste o más arriba (si no, la cejilla las apagaría o cambiaría su nota);
    - máximo 4 dedos; a mayor traste, dedo más a la derecha (índice a meñique);
    - dos dedos distintos no se separan más de (dedos de distancia + 1) trastes. */
-function playable(s,fr){
+/* Dedos necesarios: trastes con dedo agrupados en cejillas válidas (misma regla que playable). */
+function groupsOf(fr){
   const notes=[]; fr.forEach((f,k)=>{if(f>0) notes.push({k,f})});
-  if(!notes.length) return true;
-  const frets=notes.map(n=>n.f);
-  if(Math.max(...frets)-Math.min(...frets)>3) return false;
   const groups=[];
-  for(const g of [...new Set(frets)].sort((a,b)=>a-b)){
+  for(const g of [...new Set(notes.map(n=>n.f))].sort((a,b)=>a-b)){
     let cur=null;
     for(const n of notes.filter(n=>n.f===g)){
       let join=!!cur;
@@ -552,6 +550,13 @@ function playable(s,fr){
       if(join) cur.last=n.k; else {cur={f:g,last:n.k};groups.push(cur)}
     }
   }
+  return groups;
+}
+function playable(s,fr){
+  const frets=fr.filter(f=>f>0);
+  if(!frets.length) return true;
+  if(Math.max(...frets)-Math.min(...frets)>3) return false;
+  const groups=groupsOf(fr);
   const k=groups.length; if(k>4) return false;
   const as=[];
   function rec(i,prev){
@@ -656,14 +661,24 @@ function makeChord(root,ti){
   const tones=t.tones.map(x=>({...x,pc:(root+x.semis)%12,name:spell(rootName,x.semis,x.step)}));
   return {root,rootName,t,ti,tones,bassIsRoot:true};
 }
-/* Primera forma tocable: fundamental si existe; si no, la primera inversión que sí se pueda; y si hace falta, con cuerdas extra. */
+/* Forma inicial al elegir un acorde: la más "de libro". Prefiere la fundamental (con cualquier número de cuerdas); entre
+   las formas candidatas gana la de menor costo: cerca del inicio del mástil, pocos dedos, cuerdas al aire y muchas cuerdas.
+   (Em → 0-2-2-0-0-0, C → x-3-2-0-1-0, G → 3-2-0-0-0-3). Si no hay fundamental tocable, la primera inversión que sí se pueda. */
+function voicingCost(v){
+  const rel=v.rel, fretted=rel.filter(f=>f>0), mx=fretted.length?Math.max(...fretted):0, opens=rel.filter(f=>f===0).length;
+  return mx*3+groupsOf(rel).length*1.5-rel.length*2-opens;
+}
 function pickStart(c){
   const pcs=c.tones.map(t=>t.pc);
-  for(let n=c.tones.length;n<=6;n++)
-    for(let b=0;b<c.tones.length;b++){
-      const list=findVoicings(pcs,c.tones[b].pc,n,capo);
-      if(list.length) return {v:list[0],n,bassIdx:b};
-    }
+  for(let b=0;b<c.tones.length;b++){
+    let best=null;
+    for(let n=c.tones.length;n<=6;n++)
+      for(const v of findVoicings(pcs,c.tones[b].pc,n,capo)){
+        const cost=voicingCost(v);
+        if(!best||cost<best.cost) best={v,n,bassIdx:b,cost};
+      }
+    if(best) return best;
+  }
   return null;
 }
 let bRoot=0,bTi=0;

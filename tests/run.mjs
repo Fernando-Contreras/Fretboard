@@ -132,6 +132,29 @@ for (const s of sels) ok(!dynamic.includes(s), `querySelectorAll('[data-${s}]') 
 setLang('es');
 ok(intName(7) === '5ª justa' && symT(TPL[24]) === '7(sin 5)', 'el español cambió');
 
+// 5a) formas iniciales de "Seleccionar acorde": los acordes comunes salen con su forma de libro
+const shape = (s, frets) => ['x', 'x', 'x', 'x', 'x', 'x'].map((_, i) => (i >= s && i < s + frets.length ? frets[i - s] : 'x')).join('-');
+const TPLI = Object.fromEntries(TPL.map((t, i) => [t.sym || 'M', i]));
+const BOOK = { // [raíz pc, símbolo] → forma esperada
+  'C': [0, 'M', 'x-3-2-0-1-0'], 'D': [2, 'M', 'x-x-0-2-3-2'], 'E': [4, 'M', '0-2-2-1-0-0'], 'G': [7, 'M', '3-2-0-0-0-3'],
+  'A': [9, 'M', 'x-0-2-2-2-0'], 'F': [5, 'M', '1-3-3-2-1-1'],
+  'Am': [9, 'm', 'x-0-2-2-1-0'], 'Dm': [2, 'm', 'x-x-0-2-3-1'], 'Em': [4, 'm', '0-2-2-0-0-0'],
+  'E7': [4, '7', '0-2-0-1-0-0'], 'A7': [9, '7', 'x-0-2-0-2-0'], 'D7': [2, '7', 'x-x-0-2-1-2'], 'G7': [7, '7', '3-2-0-0-0-1'], 'C7': [0, '7', 'x-3-5-3-5-3'], // la x-3-2-3-1-0 clásica no lleva la 5ª, y aquí se exigen todas las notas
+};
+const EXTRA = { // solo se imprimen con SHOW=1, para revisarlos a ojo
+  'B': [11, 'M'], 'Bm': [11, 'm'], 'F♯m': [6, 'm'], 'Cmaj7': [0, 'maj7'], 'Dmaj7': [2, 'maj7'], 'Am7': [9, 'm7'], 'Em7': [4, 'm7'], 'Dm7': [2, 'm7'],
+  'Dsus4': [2, 'sus4'], 'Asus2': [9, 'sus2'], 'Cadd9': [0, 'add9'], 'Bdim': [11, 'dim'], 'Caug': [0, 'aug'], 'B7': [11, '7'], 'E5': [4, '5'],
+};
+const picks = {};
+for (const [name, [root, sym, want]] of Object.entries(BOOK)) {
+  const st = pickStart(makeChord(root, TPLI[sym])); const got = st ? shape(st.v.s, st.v.frets) : 'ninguna';
+  picks[name] = got; ok(got === want, `forma inicial de ${name}: salió ${got} y se esperaba ${want}`);
+}
+if (process.env.SHOW) {
+  for (const [name, [root, sym]] of Object.entries(EXTRA)) { const st = pickStart(makeChord(root, TPLI[sym])); picks[name] = st ? shape(st.v.s, st.v.frets) : 'ninguna'; }
+  console.log(picks);
+}
+
 // 5b) capo: con el capo en el traste N nada queda detrás de N, la "cuerda al aire" es el traste N,
 //     y cada forma sigue siendo correcta y tocable (relativa al capo)
 let capoV = 0, capoEmpty = 0;
